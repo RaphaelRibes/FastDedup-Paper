@@ -1,0 +1,13 @@
+[workspace]
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+[dependencies]
+typst = "*"
+
+[tasks.compile]
+description = "Compile the Typst report to PDF"
+cmd = "typst compile --root . *.typ paper.pdf"
+
+[tasks.watch]
+cmd = "typst watch --root . *.typ paper.pdf"
