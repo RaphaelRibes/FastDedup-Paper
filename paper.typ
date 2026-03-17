@@ -6,7 +6,6 @@
 
 #set document(
   title: "FastDedup: A fast and memory efficient tool for reads deduplication",
-  author: "Raphaël Ribes",
   date: auto,
 )
 
@@ -42,16 +41,17 @@
   #v(0.5cm)
   #text(size: 18pt, weight: "bold")[A fast and memory efficient tool for reads deduplication]
   #v(3cm)
-  #text(size: 12pt)[*Raphaël Ribes*\ Master 2 Bioinformatics - Université de Montpellier]
+  #text(size: 12pt)[*Raphaël Ribes*, *Céline Mandier*\ _Université de Montpellier_]
   
-  #text(size: 12pt)[*Céline Mandier*\ Study Engineer - Institut de Science des données de Montpellier]
   #v(1cm)
   #text(size: 11pt, fill: gray)[#datetime.today().display("[day] [month repr:long] [year]")]
-  #v(1em)
-  #link("https://github.com/RaphaelRibes/FDedup.git")[FastDedup -- GitHub repository]
 ]
 
 #v(1fr)
+Available on #link("https://github.com/RaphaelRibes/FDedup.git")[GitHub], 
+Bionconda (pending) and 
+#link("https://crates.io/crates/fastdedup")[Cargo]
+
 #rect(fill: luma(245), inset: 1em, width: 100%)[
   *Abstract* -- TODO
 ]
@@ -407,6 +407,12 @@ We can also see that the difference of RAM usage bewteen the 64-bit and 128-bit 
 
 == : Compressed Paired-End FASTQ
 
+== : Compressed in, decompressed out Paired-End FASTQ
+
+== : Decompressed Single-End FASTQ
+
+== : Compressed Single-End FASTQ
+
 
 #page(flipped: true)[
   #figure(
@@ -448,6 +454,10 @@ Now that we have significant data from isolated benchmarks, we can discuss the i
 
 == : Output Quality and Deduplication Accuracy
 
+Despite each tool having very different approaches to deduplication, they all produced the pretty much the same output in terms of the number of unique sequences and the duplication rate.
+There is a small difference with small datasets (\<1% with 0.1 M reads) but none on larger datasets.
+Thoses observations were made manually and I don't think it is worth adding even more layer to the paper.
+
 == : Performance with Paired-End Reads
 
 On all paired-end datasets, `FastDedup` outperformed all other tools in terms of execution time for all dataset sizes, while maintaining a very low memory footprint.
@@ -469,11 +479,16 @@ Indeed, writing a compressed file makes the writing phase taking more than 90% o
 Another feature that could be added is track of abundance, which would allow users to not only remove duplicates but also to quantify how many times each unique sequence was observed in the input dataset.
 This can be particularly useful for applications like metagenomics or transcriptomics, where the abundance of certain sequences can provide important biological insights.
 
-That's pretty much it, it is deduplicating PCR fragments not sending men on the moon.
+= -- Conclusion and Recommendations
 
-= -- Conclusion
+`FastDedup` represents a significant advancement in the field of FASTX deduplication, offering unparalleled speed and memory efficiency compared to existing tools.
+Its innovative use of non-cryptographic hashing and dynamic scaling strategies allows it to handle massive datasets with ease, making it an ideal choice for modern high-throughput sequencing projects.
+While other tools may offer specific features or error tolerance, `FastDedup` provides a robust, scalable solution for bioinformaticians seeking to optimize their data processing pipelines without sacrificing accuracy or resource efficiency.
+For paired-end datasets, `FastDedup` is the clear choice for users prioritizing speed, while `PRINSEQ++` may be preferred for those with strict memory constraints.
+For single-end datasets, TODO.
 
-I'm speed
+We recommand using `FastDedup` at the beginning of the data processing pipeline, immediately after quality control and adapter trimming steps, to ensure that downstream analyses are not biased by PCR duplicates.
+By using uncompressed output files, users can further maximize the performance benefits of `FastDedup`, and then deleting the uncompressed files after further processing to save storage space.
 
 = -- Acknowledgements
 #v(1em)
@@ -488,32 +503,34 @@ Computations were performed on the ISDM-MESO HPC platform, funded in the framewo
 #pagebreak()
 #bibliography("works.bib", style: "american-physics-society")
 
-= -- Annexes
 
-#figure(
-      align(center)[
-          #table(
-            columns: 12,
-            align: center + horizon,
-            
-            // Header Row with units
-            [*Tool* \ _(s) \ (MB)_], [*0.1M*], [*0.3M*], [*0.5M*], [*1.0M*], [*3.0M*], [*5.0M*], [*10.0M*], [*30.0M*], [*50.0M*], [*100.0M*], [*300.0M*],
-            
-            // Data Rows
-            [cdhitdup],    [0.9±0.1 \ 157±1], [2.8±0.3 \ 454±0], [5.0±1.3 \ 751±0], [10.2±2.0 \ 1495±1], [29.7±6.1 \ 4444±1], [47.5±14.2 \ 7275±140], [108±31 \ 14639±1], [OOM], [OOM], [OOM], [OOM],
-            
-            [clumpify],    [3.7±0.1 \ 612±45], [5.4±0.7 \ 874±28], [6.6±0.5 \ 1188±24], [11.0±2.7 \ 1951±77], [34.6±5.5 \ 5710±65], [49.7±12.0 \ 11152±29], [118±26 \ 18208±16], [378±70 \ 24857±1860], [578±89 \ 25813±735], [1133±265 \ 25088±870], [OOM],
-            
-            [fastp],       [3.9±0.4 \ 4217±1], [7.7±0.6 \ 4220±2], [10.8±1.0 \ 4221±1], [19.2±1.9 \ 4223±1], [53.2±5.6 \ 4232±4], [86.0±10.3 \ 4239±10], [166±19 \ 4260±16], [484±67 \ 4289±21], [813±40 \ 4314±29], [1521±135 \ 4326±22], [4453±565 \ 4320±9],
-            
-            [fastuniq],    [0.4±0.0 \ #text(fill: green)[3.0±0.0]], [1.3±0.1 \ 284±0], [2.3±0.4 \ 470±0], [5.1±1.4 \ 934±0], [16.1±3.7 \ 2796±0], [28.7±5.9 \ 4658±0], [52.3±8.5 \ 9312±0], [195±40 \ 27927±0], [OOM], [OOM], [OOM],
-            
-            [fdedup_h128], [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ 15.6±10.8], [#text(fill: green)[1.3±0.2] \ 41.9±0.2], [3.8±0.6 \ 75.9±0.2], [6.8±0.4 \ 144±0], [12.8±2.3 \ 279±1], [#text(fill: green)[43.5±9.8] \ 1095±1], [#text(fill: green)[63.9±6.5] \ 1095±0], [#text(fill: green)[138±12] \ 2184±1], [432±102 \ 8712±0],
-            
-            [fdedup_h64],  [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ #text(fill: green)[11.0±6.9]], [#text(fill: green)[1.3±0.2] \ #text(fill: green)[25.8±0.2]], [#text(fill: green)[3.6±0.4] \ #text(fill: green)[43.8±0.2]], [#text(fill: green)[6.1±0.8] \ 79.7±0.4], [#text(fill: green)[12.6±2.0] \ 152±0], [46.3±7.1 \ 583±0], [68.9±11.6 \ 584±0], [148±9 \ 1159±0], [#text(fill: green)[393±50] \ 4616±0],
-            
-            [prinseqpp],   [1.0±0.1 \ 44.6±0.4], [3.0±0.3 \ 44.9±0.3], [4.9±0.6 \ 44.7±0.4], [9.0±1.5 \ 44.8±0.3], [26.8±4.1 \ 44.6±0.4], [44.2±5.2 \ #text(fill: green)[44.7±0.4]], [93.4±22.6 \ #text(fill: green)[44.8±0.4]], [293±74 \ #text(fill: green)[44.6±0.5]], [475±55 \ #text(fill: green)[44.7±0.4]], [1002±257 \ #text(fill: green)[44.8±0.4]], [2534±103 \ #text(fill: green)[45.0±0.5]],
-          )
-      ],
-      caption: [Runtime and memory usage benchmarking of existing tools and `FastDedup` on synthetic datasets of varying sizes. OOM indicates Out Of Memory errors.],
-    ) <PE_table>
+#page(flipped: true)[
+= -- Annexes
+    #figure(
+          align(center)[
+              #table(
+                columns: 12,
+                align: center + horizon,
+                
+                // Header Row with units
+                [*Tool* \ _(s) \ (MB)_], [*0.1M*], [*0.3M*], [*0.5M*], [*1.0M*], [*3.0M*], [*5.0M*], [*10.0M*], [*30.0M*], [*50.0M*], [*100.0M*], [*300.0M*],
+                
+                // Data Rows
+                [cdhitdup],    [0.9±0.1 \ 157±1], [2.8±0.3 \ 454±0], [5.0±1.3 \ 751±0], [10.2±2.0 \ 1495±1], [29.7±6.1 \ 4444±1], [47.5±14.2 \ 7275±140], [108±31 \ 14639±1], [OOM], [OOM], [OOM], [OOM],
+                
+                [clumpify],    [3.7±0.1 \ 612±45], [5.4±0.7 \ 874±28], [6.6±0.5 \ 1188±24], [11.0±2.7 \ 1951±77], [34.6±5.5 \ 5710±65], [49.7±12.0 \ 11152±29], [118±26 \ 18208±16], [378±70 \ 24857±1860], [578±89 \ 25813±735], [1133±265 \ 25088±870], [OOM],
+                
+                [fastp],       [3.9±0.4 \ 4217±1], [7.7±0.6 \ 4220±2], [10.8±1.0 \ 4221±1], [19.2±1.9 \ 4223±1], [53.2±5.6 \ 4232±4], [86.0±10.3 \ 4239±10], [166±19 \ 4260±16], [484±67 \ 4289±21], [813±40 \ 4314±29], [1521±135 \ 4326±22], [4453±565 \ 4320±9],
+                
+                [fastuniq],    [0.4±0.0 \ #text(fill: green)[3.0±0.0]], [1.3±0.1 \ 284±0], [2.3±0.4 \ 470±0], [5.1±1.4 \ 934±0], [16.1±3.7 \ 2796±0], [28.7±5.9 \ 4658±0], [52.3±8.5 \ 9312±0], [195±40 \ 27927±0], [OOM], [OOM], [OOM],
+                
+                [fdedup_h128], [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ 15.6±10.8], [#text(fill: green)[1.3±0.2] \ 41.9±0.2], [3.8±0.6 \ 75.9±0.2], [6.8±0.4 \ 144±0], [12.8±2.3 \ 279±1], [#text(fill: green)[43.5±9.8] \ 1095±1], [#text(fill: green)[63.9±6.5] \ 1095±0], [#text(fill: green)[138±12] \ 2184±1], [432±102 \ 8712±0],
+                
+                [fdedup_h64],  [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ #text(fill: green)[11.0±6.9]], [#text(fill: green)[1.3±0.2] \ #text(fill: green)[25.8±0.2]], [#text(fill: green)[3.6±0.4] \ #text(fill: green)[43.8±0.2]], [#text(fill: green)[6.1±0.8] \ 79.7±0.4], [#text(fill: green)[12.6±2.0] \ 152±0], [46.3±7.1 \ 583±0], [68.9±11.6 \ 584±0], [148±9 \ 1159±0], [#text(fill: green)[393±50] \ 4616±0],
+                
+                [prinseqpp],   [1.0±0.1 \ 44.6±0.4], [3.0±0.3 \ 44.9±0.3], [4.9±0.6 \ 44.7±0.4], [9.0±1.5 \ 44.8±0.3], [26.8±4.1 \ 44.6±0.4], [44.2±5.2 \ #text(fill: green)[44.7±0.4]], [93.4±22.6 \ #text(fill: green)[44.8±0.4]], [293±74 \ #text(fill: green)[44.6±0.5]], [475±55 \ #text(fill: green)[44.7±0.4]], [1002±257 \ #text(fill: green)[44.8±0.4]], [2534±103 \ #text(fill: green)[45.0±0.5]],
+              )
+          ],
+          caption: [Runtime and memory usage benchmarking of existing tools and `FastDedup` on synthetic datasets of varying sizes. OOM indicates Out Of Memory errors.],
+        ) <PE_table>
+]
