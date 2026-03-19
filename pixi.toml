@@ -5,9 +5,21 @@ platforms = ["linux-64"]
 [dependencies]
 typst = "*"
 
+[tasks]
+plot = { cmd = "python results/plotit.py", default-environment = "plot" }
+
 [tasks.compile]
 description = "Compile the Typst report to PDF"
 cmd = "typst compile --root . *.typ paper.pdf"
 
 [tasks.watch]
 cmd = "typst watch --root . *.typ paper.pdf"
+
+[feature.plot.dependencies]
+python = "*"
+pandas = "*"
+matplotlib = "*"
+seaborn = "*"
+
+[environments]
+plot = ["plot"]

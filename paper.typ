@@ -1,4 +1,5 @@
 #import "@preview/oxdraw:0.1.0": *
+#import "bench-table.typ": bench-table
 #import "@preview/cetz:0.4.2": canvas, draw
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge, shapes
 #import "@preview/fontawesome:0.5.0": *
@@ -390,15 +391,15 @@ Since those tools are for the first step for pre-treatment of data, it would be 
 
 == : Uncompressed Paired-End FASTQ
 #figure(
-      image("PE.svg", width: 100%),
-      caption: [
-        Execution time and memory usage across varying dataset sizes.
-      ],
-) <PE_bench>
+    image("results/pe_dd_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<PE_dd_bench>
 
-For uncompressed FASTQ file as inputs and uncompressed FASTQ file as outputs, `FastDedup` consistently outperformed all other tools in terms of execution time (@PE_bench, @PE_table).
+For uncompressed FASTQ file as inputs and uncompressed FASTQ file as outputs, `FastDedup` consistently outperformed all other tools in terms of execution time (@PE_dd_bench, @PE_dd_table).
 We can also observed that there are no real difference in execution time between the 64-bit and 128-bit hashing strategies, which is consistent with the theoretical analysis of their time complexity.
-We can also see that `FastDedup` takes up significantly less memory than all the other tools up until 3M reads, where `prinseq++` starts to use less memory than `FastDedup`.
+We can also see that `FastDedup` takes up significantly less memory than all the other tools up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup`.
 
 However, starting at 30M reads, `CD-HIT-DUP` crashed due to an OOM error, followed by `fastuniq` at 50M reads, and `clumpify` at 300M reads.
 This left only `fastp`, `prinseq++` and `FastDedup` which was 6.4 times faster than `prinseq++` and 11.3 times faster than `fastp` at 300M reads, while using only 4.6GB and 8.7GB of RAM for 64-bit and 128-bit hashing respectively.
@@ -409,43 +410,56 @@ We can also see that the difference of RAM usage bewteen the 64-bit and 128-bit 
 
 == : Compressed in, decompressed out Paired-End FASTQ
 
+Before talking about the results, we have to note that `fastuniq` is not included in this benchmark since it does not support compressed files.
+For `CD-HIT-DUP`, I got OOM errors for all read volumes. 
+Since the tool doesn't output any log, I wasn't able to make it wrork for this specific benchmark.
+
+#figure(
+    image("results/pe_cd_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<PE_cd_bench>
+
+We observe very similar results as for uncompressed files (@PE_cd_bench, @PE_cd_table).
+`FastDedup` being the fastest tool and using the least amount of RAM up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup`.
+We can also note very similar results for relative performance between each tools, which mean that all the tools scale in a similar way when the input files are compressed or not.
+
 == : Decompressed Single-End FASTQ
 
 == : Compressed Single-End FASTQ
 
 
 #page(flipped: true)[
-  #figure(
-    align(center)[
-      #table(
-        columns: (auto, auto, auto, auto, auto, 1fr),
-        align: (col, row) => if row == 0 { center } else { left },
-        stroke: 0.5pt + luma(200),
-        fill: (col, row) => if row == 0 { luma(240) } else { none },
-        
-        [*Tool*], [*Algorithm / Approach*], [*PE Support*], [*Error Tolerance*], [*Memory Usage*], [*Key Limitations*],
-        
-        [`fastp` @Chen2018 @Chen2023], [Probabilistic (Bloom filter/hashes)], [Yes], [No], [Configurable], [False-positive rate; long runtime],
-        
-        [`FastUniq` @Xu2012], [Deterministic (Merge sort)], [Yes], [No], [Very High], [Severe RAM bottleneck; sensitive to input file order.],
-        
-        [`Clumpify` @Bushnell2014], [k-mer grouping], [Yes], [Yes], [Variable], [Variable stability on massive datasets; high memory overhead.],
-        
-        [`SeqKit rmdup` @Shen2016 @Shen2024], [Exact matching (Hashing/MD5)], [No], [No], [Very Low], [Desynchronizes paired-end files.],
-        
-        [`CD-HIT-DUP` @Fu2012 @Huang2010], [Greedy incremental clustering], [Yes], [Yes], [Very High], [Stability issues in containerized environments.],
-        
-        [`PRINSEQ++` @Cantu2019], [Probabilistic (Bloom filter)], [Yes], [No], [Low], [False-positives rate],
-        
-        [`FastDedup`], [Exact matching (Hashing/xxh3)], [Yes], [No], [Very Low], [Theoretical negligible collision risk]
-      )
-    ],
-    caption: [Summary of existing tools for reads deduplication and their limitations.],
-  ) <tools_table>
-  
-  #v(1fr)
-  
-  
+    #figure(
+        align(center)[
+            #table(
+                columns: (auto, auto, auto, auto, auto, 1fr),
+                align: (col, row) => if row != 0 and col == 5 { left } else { center + horizon },
+                stroke: 0.5pt + luma(200),
+                fill: (col, row) => if row == 0 { luma(240) } else { none },
+                
+                [*Tool*], [*Algorithm / Approach*], [*PE \ Support*], [*Error \ Tolerance*], [*Memory \ Usage*], [*Key Limitations*],
+                
+                [`fastp` @Chen2018 @Chen2023], [Probabilistic (Bloom filter/hashes)], [Yes], [No], [Configurable], [False-positive rate; long runtime],
+                
+                [`FastUniq` @Xu2012], [Deterministic (Merge sort)], [Yes], [No], [Very High], [Severe RAM bottleneck; sensitive to input file order.],
+                
+                [`Clumpify` @Bushnell2014], [k-mer grouping], [Yes], [Yes], [Variable], [Variable stability on massive datasets; high memory overhead.],
+                
+                [`SeqKit rmdup` @Shen2016 @Shen2024], [Exact matching (Hashing/MD5)], [No], [No], [Very Low], [Desynchronizes paired-end files.],
+                
+                [`CD-HIT-DUP` @Fu2012 @Huang2010], [Greedy incremental clustering], [Yes], [Yes], [Very High], [Stability issues in containerized environments.],
+                
+                [`PRINSEQ++` @Cantu2019], [Probabilistic (Bloom filter)], [Yes], [No], [Low], [False-positives rate],
+                
+                [`FastDedup`], [Exact matching (Hashing/xxh3)], [Yes], [No], [Very Low], [Theoretical negligible collision risk]
+            )
+        ],
+        caption: [Summary of existing tools for reads deduplication and their limitations.],
+    ) <tools_table>
+    
+    #v(1fr)
 ]
 
 = -- Discussion and future perspectives
@@ -505,32 +519,15 @@ Computations were performed on the ISDM-MESO HPC platform, funded in the framewo
 
 
 #page(flipped: true)[
-= -- Annexes
-    #figure(
-          align(center)[
-              #table(
-                columns: 12,
-                align: center + horizon,
-                
-                // Header Row with units
-                [*Tool* \ _(s) \ (MB)_], [*0.1M*], [*0.3M*], [*0.5M*], [*1.0M*], [*3.0M*], [*5.0M*], [*10.0M*], [*30.0M*], [*50.0M*], [*100.0M*], [*300.0M*],
-                
-                // Data Rows
-                [cdhitdup],    [0.9±0.1 \ 157±1], [2.8±0.3 \ 454±0], [5.0±1.3 \ 751±0], [10.2±2.0 \ 1495±1], [29.7±6.1 \ 4444±1], [47.5±14.2 \ 7275±140], [108±31 \ 14639±1], [OOM], [OOM], [OOM], [OOM],
-                
-                [clumpify],    [3.7±0.1 \ 612±45], [5.4±0.7 \ 874±28], [6.6±0.5 \ 1188±24], [11.0±2.7 \ 1951±77], [34.6±5.5 \ 5710±65], [49.7±12.0 \ 11152±29], [118±26 \ 18208±16], [378±70 \ 24857±1860], [578±89 \ 25813±735], [1133±265 \ 25088±870], [OOM],
-                
-                [fastp],       [3.9±0.4 \ 4217±1], [7.7±0.6 \ 4220±2], [10.8±1.0 \ 4221±1], [19.2±1.9 \ 4223±1], [53.2±5.6 \ 4232±4], [86.0±10.3 \ 4239±10], [166±19 \ 4260±16], [484±67 \ 4289±21], [813±40 \ 4314±29], [1521±135 \ 4326±22], [4453±565 \ 4320±9],
-                
-                [fastuniq],    [0.4±0.0 \ #text(fill: green)[3.0±0.0]], [1.3±0.1 \ 284±0], [2.3±0.4 \ 470±0], [5.1±1.4 \ 934±0], [16.1±3.7 \ 2796±0], [28.7±5.9 \ 4658±0], [52.3±8.5 \ 9312±0], [195±40 \ 27927±0], [OOM], [OOM], [OOM],
-                
-                [fdedup_h128], [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ 15.6±10.8], [#text(fill: green)[1.3±0.2] \ 41.9±0.2], [3.8±0.6 \ 75.9±0.2], [6.8±0.4 \ 144±0], [12.8±2.3 \ 279±1], [#text(fill: green)[43.5±9.8] \ 1095±1], [#text(fill: green)[63.9±6.5] \ 1095±0], [#text(fill: green)[138±12] \ 2184±1], [432±102 \ 8712±0],
-                
-                [fdedup_h64],  [#text(fill: green)[0.2±0.0] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.4±0.1] \ #text(fill: green)[3.0±0.0]], [#text(fill: green)[0.7±0.1] \ #text(fill: green)[11.0±6.9]], [#text(fill: green)[1.3±0.2] \ #text(fill: green)[25.8±0.2]], [#text(fill: green)[3.6±0.4] \ #text(fill: green)[43.8±0.2]], [#text(fill: green)[6.1±0.8] \ 79.7±0.4], [#text(fill: green)[12.6±2.0] \ 152±0], [46.3±7.1 \ 583±0], [68.9±11.6 \ 584±0], [148±9 \ 1159±0], [#text(fill: green)[393±50] \ 4616±0],
-                
-                [prinseqpp],   [1.0±0.1 \ 44.6±0.4], [3.0±0.3 \ 44.9±0.3], [4.9±0.6 \ 44.7±0.4], [9.0±1.5 \ 44.8±0.3], [26.8±4.1 \ 44.6±0.4], [44.2±5.2 \ #text(fill: green)[44.7±0.4]], [93.4±22.6 \ #text(fill: green)[44.8±0.4]], [293±74 \ #text(fill: green)[44.6±0.5]], [475±55 \ #text(fill: green)[44.7±0.4]], [1002±257 \ #text(fill: green)[44.8±0.4]], [2534±103 \ #text(fill: green)[45.0±0.5]],
-              )
-          ],
-          caption: [Runtime and memory usage benchmarking of existing tools and `FastDedup` on synthetic datasets of varying sizes. OOM indicates Out Of Memory errors.],
-        ) <PE_table>
+    = -- Annexes
+
+    #bench-table(
+        "results/pe_dd.csv",
+        label: <PE_dd_table>,
+    )
+
+    #bench-table(
+        "results/pe_cd.csv",
+        label: <PE_cd_table>,
+    )
 ]
