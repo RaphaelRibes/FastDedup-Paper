@@ -49,9 +49,6 @@
 ]
 
 #v(1fr)
-Available on #link("https://github.com/RaphaelRibes/FDedup.git")[GitHub], 
-Bionconda (pending) and 
-#link("https://crates.io/crates/fastdedup")[Cargo]
 
 #rect(fill: luma(245), inset: 1em, width: 100%)[
   *Abstract* -- TODO
@@ -389,6 +386,20 @@ If the tool goes above 32GB of RAM, it is killed and written as OOM (Out Of Memo
 In times where RAM and electricity are becoming increasingly costly and environmentally impactful, it is crucial to consider the resource efficiency of bioinformatics tools.
 Since those tools are for the first step for pre-treatment of data, it would be senseless to run them on luducrous ressources.
 
+== : Compressed Paired-End FASTQ
+
+#figure(
+    image("results/pe_cc_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<PE_cc_bench>
+
+The default compression level of `fastp` is 4 but the `flate` library I use with `fdedup` is using a level 6 compression by default, which is more CPU intensive.
+Adding an option to set the compression level, we can now put `fastp` and `fdedup` on a more equal footing in terms of compression time.
+It would have been easier to just setp fastp to level 6, but it was a nice opportunity to add another feature to `fdedup`.
+In the end I added the option but I will rerun the benchmarks with `fastp` set to level 6 because all the other tools are level 6.
+
 == : Uncompressed Paired-End FASTQ
 #figure(
     image("results/pe_dd_runtime_and_ram.svg", width: 100%),
@@ -405,8 +416,6 @@ However, starting at 30M reads, `CD-HIT-DUP` crashed due to an OOM error, follow
 This left only `fastp`, `prinseq++` and `FastDedup` which was 6.4 times faster than `prinseq++` and 11.3 times faster than `fastp` at 300M reads, while using only 4.6GB and 8.7GB of RAM for 64-bit and 128-bit hashing respectively.
 
 We can also see that the difference of RAM usage bewteen the 64-bit and 128-bit hashing strategies is doubled, which is consistent with the the fact that 64 times 2 is 128.
-
-== : Compressed Paired-End FASTQ
 
 == : Compressed in, decompressed out Paired-End FASTQ
 
@@ -425,12 +434,95 @@ We observe very similar results as for uncompressed files (@PE_cd_bench, @PE_cd_
 `FastDedup` being the fastest tool and using the least amount of RAM up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup`.
 We can also note very similar results for relative performance between each tools, which mean that all the tools scale in a similar way when the input files are compressed or not.
 
+== : Compressed Single-End FASTQ
+
+#figure(
+    image("results/se_cc_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<SE_cc_bench>
+
+For SE data, we see 2 clear winners for execution time, `SeqKit` up until 3M reads and `fastp` for 5M reads and above (@SE_cc_bench, @SE_cc_table).
+Despite that `FastDedup` is having much better RAM efficiency than `SeqKit` and `fastp` while keeping a relatively good execution time, especially compared to `prinseq++` which is the slowest tool for SE compressed data.
+
 == : Decompressed Single-End FASTQ
 
-== : Compressed Single-End FASTQ
+#figure(
+    image("results/se_dd_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<SE_dd_bench>
+
+Here we get similar results as for uncompressed paired-end data, with `FastDedup` being the fastest tool and using the least amount of RAM up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup` (@SE_dd_bench, @SE_dd_table).
+
+== : Compressed in, decompressed out Single-End FASTQ
+
+#figure(
+    image("results/se_cd_runtime_and_ram.svg", width: 100%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<SE_cd_bench>
+
+Well I fucked up the config of this one it is reruning right now.
+
+= -- Discussion and future perspectives
+
+Now that we have significant data from isolated benchmarks, we can discuss the implications of these results for real-world applications and the future development of `FastDedup`.
+
+== : Output Quality and Deduplication Accuracy
+
+Despite each tool having very different approaches to deduplication, they all produced the pretty much the same output in terms of the number of unique sequences and the duplication rate.
+There is a small difference, but less than 0.1% between the tools.
+However, I wasn't able to estimate for `CD-HIT-DUP` since it doesn't output any log.
+Moreover, there is a problem with `prinseq++` starting at 10M reads where the duplication rate is higher than 10.1%, reaching up to more than 90% at 300M reads (@PE_dd_dedup).
+Because of this we do not recommend using `prinseq++` in your pipelines, since it starting to be more memory efficient than `FastDedup` at 5M reads, but starts having a very high false-positive rate at 10M reads.
+
+#figure(
+    image("results/pe_dd_duplication_rate.svg", width: 80%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<PE_dd_dedup>
+
+A similar pattern is observed for `clumpify` on signle-end data, but starting at 3M reads.
+It is above 10.1% at 10M reads but reaching around than 10.1% at 100M reads (@SE_dd_dedup).
+This is still above the 0.1% false-positive threshold, but it is far better than the 90% false-positive rate of `prinseq++` at 300M reads.
+
+#figure(
+    image("results/se_dd_duplication_rate.svg", width: 80%),
+    caption: [
+    Execution time and memory usage across varying dataset sizes.
+    ],
+)<SE_dd_dedup>
+
+The target duplication value isn't constant across different volume because `wgsim` is a random read simulator.
+We can calculate the number of natural duplicate $C$ with $N$ randomly generate reads from a uniform distribution of $M$ possible start positions like $C approx N^2 / (2M)$.
+However, the human genome is not uniform, it contains high-frequency repeat families @treangen2012repetitive, so we have to aproximate $M$ with the number of unique start positions in the simulated dataset.
+We can aproximate $k=(2G)^(-1)$ using a known data point from your `wgsim` simulation.
+Looking at the generation of $270,000,000$ single-end reads, the simulation naturally produced roughly $60,000$ coincidental duplicates.
+
+We can solve $k$ like:
+$ 
+60,000 &= k times (270,000,000)^2 \
+k &= (60,000) / (270,000,000)^2
+$
+We can simply now express the number of natural duplicates $C$ like $C=k times N^2$ and add this $C$ to the 10% of duplicates we added to the dataset to get the expected duplication rate for each dataset size.
+
+== : Performance with Paired-End Reads
+
+On all paired-end datasets, `FastDedup` outperformed all other tools in terms of execution time for all dataset sizes, while maintaining a very low memory footprint.
+However if the user is looking for the lowest possible memory usage, starting after 3M reads, `prinseq++` is the best choice for paired-end data, but it is more than 7 times slower than `FastDedup` for 5M reads and goes down to 6.4 times slower at 300M reads.
+
+== : Performance with Single-End Reads
+
+== : Performance with Compressed Files
 
 
 #page(flipped: true)[
+    == : In short
     #figure(
         align(center)[
             #table(
@@ -462,25 +554,6 @@ We can also note very similar results for relative performance between each tool
     #v(1fr)
 ]
 
-= -- Discussion and future perspectives
-
-Now that we have significant data from isolated benchmarks, we can discuss the implications of these results for real-world applications and the future development of `FastDedup`.
-
-== : Output Quality and Deduplication Accuracy
-
-Despite each tool having very different approaches to deduplication, they all produced the pretty much the same output in terms of the number of unique sequences and the duplication rate.
-There is a small difference with small datasets (\<1% with 0.1 M reads) but none on larger datasets.
-Thoses observations were made manually and I don't think it is worth adding even more layer to the paper.
-
-== : Performance with Paired-End Reads
-
-On all paired-end datasets, `FastDedup` outperformed all other tools in terms of execution time for all dataset sizes, while maintaining a very low memory footprint.
-However if the user is looking for the lowest possible memory usage, starting after 3M reads, `prinseq++` is the best choice for paired-end data, but it is more than 7 times slower than `FastDedup` for 5M reads and goes down to 6.4 times slower at 300M reads.
-
-== : Performance with Single-End Reads
-
-== : Performance with Compressed Files
-
 == : The Future of FastDedup
 
 The current version of `FastDedup` is optimized for speed and memory efficiency, but there are some features that could further enhance its functionality.
@@ -495,21 +568,26 @@ This can be particularly useful for applications like metagenomics or transcript
 
 = -- Conclusion and Recommendations
 
-`FastDedup` represents a significant advancement in the field of FASTX deduplication, offering unparalleled speed and memory efficiency compared to existing tools.
+`FastDedup` represents a significant advancement for FASTX deduplication, offering unparalleled speed and memory efficiency compared to existing tools.
 Its innovative use of non-cryptographic hashing and dynamic scaling strategies allows it to handle massive datasets with ease, making it an ideal choice for modern high-throughput sequencing projects.
 While other tools may offer specific features or error tolerance, `FastDedup` provides a robust, scalable solution for bioinformaticians seeking to optimize their data processing pipelines without sacrificing accuracy or resource efficiency.
-For paired-end datasets, `FastDedup` is the clear choice for users prioritizing speed, while `PRINSEQ++` may be preferred for those with strict memory constraints.
+For paired-end datasets, `FastDedup` is the clear choice for users prioritizing speed.
 For single-end datasets, TODO.
 
 We recommand using `FastDedup` at the beginning of the data processing pipeline, immediately after quality control and adapter trimming steps, to ensure that downstream analyses are not biased by PCR duplicates.
 By using uncompressed output files, users can further maximize the performance benefits of `FastDedup`, and then deleting the uncompressed files after further processing to save storage space.
+
+This software is protected by the MIT License, and you can find it on:
+- GitHub #link("https://github.com/RaphaelRibes/FDedup.git")
+- Bionconda #link("https://anaconda.org/bioconda/fdedup")
+- Cargo #link("https://crates.io/crates/fastdedup")
 
 = -- Acknowledgements
 #v(1em)
 
 This paper was written by Raphaël Ribes, reviewed and edited by Céline Mandier, with the assistance of Gemini 3.1 for grammar, and language correction.
 Code architecture and design was developed by Raphaël Ribes, with autocompletion assisted by Gemini 3.1.
-Feedback on the algorithm design and ideas for features were provided by Céline Mandier, and the implementation was done by Raphaël Ribes.
+Feedback on the algorithm design and ideas for features were provided by Céline Mandier and Alban Mancheron, the implementation was done by Raphaël Ribes.
 The testsuite was mostly developped Claude Sonnet 4.6, reviewed by Raphaël Ribes.
 
 Computations were performed on the ISDM-MESO HPC platform, funded in the framework of State-region planning contracts (Contrat de plan État-région – CPER) by the French Government, the Occitanie/Pyrénées-Méditerranée Region, Montpellier Méditerranée Métropole, and the University of Montpellier.
@@ -522,12 +600,50 @@ Computations were performed on the ISDM-MESO HPC platform, funded in the framewo
     = -- Annexes
 
     #bench-table(
+        "results/pe_cc.csv",
+        label: <PE_cc_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for compressed input and compressed output paired-end FASTQ files.
+        ],
+    )
+    #bench-table(
         "results/pe_dd.csv",
         label: <PE_dd_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for uncompressed input and uncompressed output paired-end FASTQ files.
+        ],
     )
 
     #bench-table(
         "results/pe_cd.csv",
         label: <PE_cd_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for compressed input and uncompressed output paired-end FASTQ files.
+        ],
+    )
+    
+    
+    #bench-table(
+        "results/se_cc.csv",
+        label: <SE_cc_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for compressed input and compressed output single-end FASTQ files.
+        ],
+    )
+
+    #bench-table(
+        "results/se_dd.csv",
+        label: <SE_dd_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for uncompressed input and uncompressed output single-end FASTQ files.
+        ],
+    )
+    
+    #bench-table(
+        "results/se_cd.csv",
+        label: <SE_cd_table>,
+        caption: [
+            Execution time and memory usage across varying dataset sizes for compressed input and uncompressed output single-end FASTQ files.
+        ],
     )
 ]

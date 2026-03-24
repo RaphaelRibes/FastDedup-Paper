@@ -1,0 +1,10 @@
+Warning: --hash specifies a hash size, so the automatic selection threshold (0.001) is ignored.
+Primary input file (R1): generated_reads/3M_single_cc/R1.fastq.gz
+Primary output file (R1): results/3M_single_cc/fdedup_h64/run_8/R1.fastq.gz
+Total estimated hash table capacity: 2480759 fragments
+--- Starting Single-End Processing ---
+Single-End Mode: 64-bit Hash
+Processed fragments: 3000003
+Duplicates removed: 10.00%
+Estimated collisions: 2.44e-5%
+Total execution time: 30.36s

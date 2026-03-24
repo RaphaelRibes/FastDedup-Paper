@@ -1,0 +1,42 @@
+java -ea  --add-modules jdk.incubator.vector -Xmx26469m -Xms26469m -cp /scratch/users/ribesr/bench-fdedup/.pixi/envs/default/opt/bbmap-39.79-0/bbtools.jar clump.Clumpify in=generated_reads/0.3M_single_cc/R1.fastq.gz out=results/0.3M_single_cc/clumpify/run_10/R1.fastq.gz dedupe=t
+WARNING: Using incubator modules: jdk.incubator.vector
+Executing clump.Clumpify [in=generated_reads/0.3M_single_cc/R1.fastq.gz, out=results/0.3M_single_cc/clumpify/run_10/R1.fastq.gz, dedupe=t]
+Version 39.79
+
+Read Estimate:          991656
+Memory Estimate:        756 MB
+Memory Available:       20943 MB
+Set groups to 1
+Executing clump.KmerSort1 [in1=generated_reads/0.3M_single_cc/R1.fastq.gz, in2=, out1=results/0.3M_single_cc/clumpify/run_10/R1.fastq.gz, out2=, groups=1, ecco=false, rename=false, shortname=f, unpair=false, repair=false, namesort=false, ow=true, dedupe=t]
+
+Making comparator.
+Made a comparator with k=31, seed=1, border=1, hashes=4
+Starting cris 0.
+Fetching reads.
+Making fetch threads.
+Starting threads.
+Waiting for threads.
+Fetch time: 	2.279 seconds.
+Closing input stream.
+Combining thread output.
+Combine time: 	0.001 seconds.
+Sorting.
+Sort time: 	0.058 seconds.
+Making clumps.
+Clump time: 	0.071 seconds.
+Deduping.
+Dedupe time: 	0.129 seconds.
+Writing.
+Waiting for writing to complete.
+Write time: 	2.600 seconds.
+Done!
+Time:                         	5.237 seconds.
+Reads Processed:        299981 	57.28k reads/sec
+Bases Processed:        44997k 	8.59m bases/sec
+
+Reads In:               299981
+Clumps Formed:          262496
+Duplicates Found:        30004	10.002%
+Reads Out:              269977
+Bases Out:            40496550
+Total time: 	5.449 seconds.

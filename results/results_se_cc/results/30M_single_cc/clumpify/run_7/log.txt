@@ -1,0 +1,149 @@
+java -ea  --add-modules jdk.incubator.vector -Xmx26469m -Xms26469m -cp /scratch/users/ribesr/bench-fdedup/.pixi/envs/default/opt/bbmap-39.79-0/bbtools.jar clump.Clumpify in=generated_reads/30M_single_cc/R1.fastq.gz out=results/30M_single_cc/clumpify/run_7/R1.fastq.gz dedupe=t
+WARNING: Using incubator modules: jdk.incubator.vector
+Executing clump.Clumpify [in=generated_reads/30M_single_cc/R1.fastq.gz, out=results/30M_single_cc/clumpify/run_7/R1.fastq.gz, dedupe=t]
+Version 39.79
+
+Read Estimate:          45429246
+Memory Estimate:        29787 MB
+Memory Available:       20943 MB
+Set groups to 15
+Executing clump.KmerSplit [in1=generated_reads/30M_single_cc/R1.fastq.gz, in2=, out=results/30M_single_cc/clumpify/run_7/R1_clumpify_p1_temp%_79981fe46d6d0a93.fastq.gz, out2=, groups=15, ecco=false, addname=f, shortname=f, unpair=false, repair=f, namesort=f, ow=true, dedupe=t]
+
+Input is being processed as unpaired
+Made a comparator with k=31, seed=1, border=1, hashes=4
+Time:                         	175.457 seconds.
+Reads Processed:      30000k 	170.98k reads/sec
+Bases Processed:       4500m 	25.65m bases/sec
+Executing clump.KmerSort3 [in1=results/30M_single_cc/clumpify/run_7/R1_clumpify_p1_temp%_79981fe46d6d0a93.fastq.gz, in2=, out=results/30M_single_cc/clumpify/run_7/R1.fastq.gz, out2=, groups=15, ecco=f, addname=false, shortname=f, unpair=f, repair=false, namesort=false, ow=true, dedupe=t]
+
+Making comparator.
+Made a comparator with k=31, seed=1, border=1, hashes=4
+Making 2 fetch threads.
+Starting threads.
+Fetching reads.
+Fetched 1995087 reads: 	16.087 seconds.
+Making clumps.
+Clump time: 	1.371 seconds.
+Deduping.
+Dedupe time: 	6.741 seconds.
+Writing.
+Fetching reads.
+Fetched 2002037 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	0.919 seconds.
+Deduping.
+Dedupe time: 	1.833 seconds.
+Writing.
+Fetching reads.
+Fetched 1990421 reads: 	14.190 seconds.
+Making clumps.
+Clump time: 	1.649 seconds.
+Deduping.
+Dedupe time: 	2.135 seconds.
+Writing.
+Fetching reads.
+Fetched 1998162 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.257 seconds.
+Deduping.
+Dedupe time: 	1.577 seconds.
+Writing.
+Fetching reads.
+Fetched 2011235 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.197 seconds.
+Deduping.
+Dedupe time: 	1.826 seconds.
+Writing.
+Fetching reads.
+Fetched 2000932 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.239 seconds.
+Deduping.
+Dedupe time: 	1.544 seconds.
+Writing.
+Fetching reads.
+Fetched 1990535 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.071 seconds.
+Deduping.
+Dedupe time: 	1.533 seconds.
+Writing.
+Fetching reads.
+Fetched 2001752 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.111 seconds.
+Deduping.
+Dedupe time: 	1.785 seconds.
+Writing.
+Fetching reads.
+Fetched 2006977 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.018 seconds.
+Deduping.
+Dedupe time: 	1.804 seconds.
+Writing.
+Fetching reads.
+Fetched 2000107 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.016 seconds.
+Deduping.
+Dedupe time: 	1.564 seconds.
+Writing.
+Fetching reads.
+Fetched 2000854 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.132 seconds.
+Deduping.
+Dedupe time: 	1.577 seconds.
+Writing.
+Fetching reads.
+Fetched 1992651 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.197 seconds.
+Deduping.
+Dedupe time: 	1.524 seconds.
+Writing.
+Fetching reads.
+Fetched 1998218 reads: 	0.000 seconds.
+Making clumps.
+Clump time: 	1.120 seconds.
+Deduping.
+Dedupe time: 	1.583 seconds.
+Writing.
+Fetching reads.
+Fetched 1990709 reads: 	0.000 seconds.
+Making clumps.
+No more reads to fetch.
+Adding poison.
+Clump time: 	0.537 seconds.
+Deduping.
+Dedupe time: 	0.744 seconds.
+Writing.
+Fetching reads.
+Encountered poison; count=1
+Fetched 2020333 reads: 	0.000 seconds.
+Making clumps.
+A fetch thread finished.
+No more reads to fetch.
+Adding poison.
+Clump time: 	0.726 seconds.
+Deduping.
+Dedupe time: 	1.204 seconds.
+Writing.
+Closing fetch threads.
+A fetch thread finished.
+Closed fetch threads.
+Waiting for writing to complete.
+Write time: 	53.334 seconds.
+Done!
+Time:                         	427.179 seconds.
+Reads Processed:        30000k 	70.23k reads/sec
+Bases Processed:         4500m 	10.53m bases/sec
+
+Reads In:             30000010
+Clumps Formed:        22557477
+Duplicates Found:      3011293	10.038%
+Reads Out:            26988717
+Bases Out:          4048307550
+Total time: 	603.249 seconds.

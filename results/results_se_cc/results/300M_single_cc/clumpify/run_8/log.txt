@@ -1,0 +1,26 @@
+java -ea  --add-modules jdk.incubator.vector -Xmx26469m -Xms26469m -cp /scratch/users/ribesr/bench-fdedup/.pixi/envs/default/opt/bbmap-39.79-0/bbtools.jar clump.Clumpify in=generated_reads/300M_single_cc/R1.fastq.gz out=results/300M_single_cc/clumpify/run_8/R1.fastq.gz dedupe=t
+WARNING: Using incubator modules: jdk.incubator.vector
+Executing clump.Clumpify [in=generated_reads/300M_single_cc/R1.fastq.gz, out=results/300M_single_cc/clumpify/run_8/R1.fastq.gz, dedupe=t]
+Version 39.79
+
+Read Estimate:          454662959
+Memory Estimate:        298103 MB
+Memory Available:       20943 MB
+Set groups to 131
+Executing clump.KmerSplit [in1=generated_reads/300M_single_cc/R1.fastq.gz, in2=, out=results/300M_single_cc/clumpify/run_8/R1_clumpify_p1_temp%_7b28f1dcf78d2121.fastq.gz, out2=, groups=131, ecco=false, addname=f, shortname=f, unpair=false, repair=f, namesort=f, ow=true, dedupe=t]
+
+Input is being processed as unpaired
+[1.205s][warning][os,thread] Failed to start thread "Unknown thread" - pthread_create failed (EAGAIN) for attributes: stacksize: 1024k, guardsize: 4k, detached.
+[1.208s][warning][os,thread] Failed to start the native thread for java.lang.Thread "Thread-112"
+java.lang.OutOfMemoryError: unable to create native thread: possibly out of memory or process/resource limits reached
+	at java.base/java.lang.Thread.start0(Native Method)
+	at java.base/java.lang.Thread.start(Thread.java:1417)
+	at stream.ConcurrentGenericReadOutputStream.start(ConcurrentGenericReadOutputStream.java:69)
+	at clump.KmerSplit.process(KmerSplit.java:317)
+	at clump.KmerSplit.main(KmerSplit.java:57)
+	at clump.Clumpify.runOnePass_v2(Clumpify.java:428)
+	at clump.Clumpify.process(Clumpify.java:275)
+	at clump.Clumpify.main(Clumpify.java:47)
+
+This program ran out of memory.
+Try increasing the -Xmx flag and using tool-specific memory-related parameters.
