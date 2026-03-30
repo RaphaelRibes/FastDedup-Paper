@@ -104,3 +104,78 @@
     #if label != none { label }
   ]
 }
+
+// ── Internal helpers ────────────────────────────────────────────────────
+
+#let _mean(a) = if a.len() == 0 { 0 } else { a.sum() / a.len() }
+#let _std(a)  = { 
+  let m = _mean(a)
+  if a.len() <= 1 { 0 } 
+  else { calc.sqrt(a.map(x => calc.pow(x - m, 2)).sum() / a.len()) }
+}
+
+#let _fmt(v) = {
+  let r = calc.round(v * 100) / 100
+  let i = int(calc.floor(r))
+  let decimals = int(calc.round((r - i) * 100))
+  str(i) + "." + (if decimals < 10 { "0" } else { "" }) + str(decimals)
+}
+
+#let _fmt-reads(rs) = {
+  let v = float(rs)
+  if v >= 1 { str(int(v)) + "M" }
+  else { str(v) + "M" }
+}
+
+#let _agg(data, tool, rs) = {
+  let rows = data.filter(r => r.tool == tool and r.reads == rs)
+  let rates = rows.map(r => r.tool_rate).filter(v => v != "").map(float)
+  
+  if rates.len() == 0 { (empty: true) }
+  else { (empty: false, mean: _mean(rates), std: _std(rates)) }
+}
+
+// ── Public API ──────────────────────────────────────────────────────────
+
+#let duplication-rate-table(
+  csv-path,
+  caption: [Mean duplication rate (%) across different library sizes.],
+  label: none,
+  tool-order: ("fdedup_h128", "fdedup_h64", "fastp", "clumpify", "cdhitdup", "prinseqpp", "seqkit", "fastuniq"),
+) = {
+  let data = csv(csv-path, row-type: dictionary)
+  let reads-strs = data.map(r => r.reads).dedup().sorted(key: float)
+  let raw-tools  = data.map(r => r.tool).dedup()
+  
+  let tools = {
+    let ordered = tool-order.filter(t => raw-tools.contains(t))
+    let rest    = raw-tools.filter(t => not tool-order.contains(t)).sorted()
+    (..ordered, ..rest).filter(t => t != "fastuniq")
+  }
+
+  let header = (([*Tool\ Duplication (%)*],), reads-strs.map(rs => [*#_fmt-reads(rs)*])).flatten()
+  
+  let body = tools.map(tool => {
+    let row-cells = reads-strs.map(rs => {
+      let res = _agg(data, tool, rs)
+      if res.empty { [---] }
+      else { _fmt(res.mean) }
+    })
+    (([#raw(tool)],), row-cells).flatten()
+  }).flatten()
+
+let fig = figure(
+    table(
+      columns: reads-strs.len() + 1,
+      align: center + horizon,
+      stroke: 0.5pt + gray,
+      inset: 6pt,
+      ..header,
+      ..body
+    ),
+    caption: caption,
+  )
+
+  // Use a content block to group the figure and the label together
+  [#fig #label] 
+}
