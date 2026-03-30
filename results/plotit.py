@@ -71,16 +71,17 @@ def build_palette(tool_lists):
     """
     current_tools = {t for tools in tool_lists for t in tools}
 
-    # Master list of tools derived from your documentation.
-    # Includes common case variations to ensure they lock to the same index.
+    # Master list of tools — exact names as they appear in the CSVs.
+    # Order is fixed so colors never shift between plots or archives.
     master_tools = [
-        'FDedup', 'fdedup',
+        'fdedup_h64',
+        'fdedup_h128',
         'fastp',
-        'Fastuniq', 'fastuniq',
+        'fastuniq',
         'clumpify',
-        'seqkit', 'Seqkit rmdup', 'seqkit rmdup',
-        'PRINSEQ++', 'prinseq++',
-        'cd-hit-dup', 'CD-HIT-DUP'
+        'seqkit',
+        'prinseqpp',
+        'cdhitdup',
     ]
 
     # Deduplicate the master list while preserving the order
@@ -106,6 +107,11 @@ def plot_and_save(csv_path, prefix, dup_rates_dir=None):
     """
     df = pd.read_csv(csv_path)
 
+    is_compressed = prefix.endswith('_cc') or prefix.endswith('_cd')
+    if is_compressed:
+        df = df[~df['tool'].astype(str).str.lower().isin(['cdhitdup'])]
+        df.to_csv(csv_path, index=False)
+
     for col in ['s', 'max_rss', 'io_in', 'io_out']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
@@ -127,6 +133,9 @@ def plot_and_save(csv_path, prefix, dup_rates_dir=None):
                     print(f'  WARNING: could not read {tsv}: {e}')
             if frames:
                 dup_df = pd.concat(frames, ignore_index=True)
+
+                if is_compressed:
+                    dup_df = dup_df[~dup_df['tool'].astype(str).str.lower().isin(['cdhitdup'])]
 
                 out_csv = f'{prefix}_duplication.csv'
                 dup_df.to_csv(out_csv, index=False)
@@ -259,7 +268,6 @@ def plot_and_save(csv_path, prefix, dup_rates_dir=None):
     fig3.savefig(out3)
     print(f'  Saved: {out3}')
     plt.close(fig3)
-
 
 # ---------------------------------------------------------------------------
 # Archive processing

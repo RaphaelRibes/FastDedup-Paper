@@ -101,7 +101,7 @@
         
         // Étape 2 : Récupérer les couleurs de tous les outils à 10% de ce min
         if min-time != 99999999.0 {
-          let threshold = min-time * 1.1
+          let threshold = min-time * 1.05
           let best-colors = ()
           
           for t in unique-tools {
@@ -225,10 +225,9 @@
           }
         }
         
-       
         // Étape 2 : Récupérer les couleurs de tous les outils à 10% de ce min
         if min-ram != 9999999999.0 {
-          let threshold = min-ram * 1.1
+          let threshold = min-ram * 1.05
           let best-colors = ()
           
           for t in unique-tools {
