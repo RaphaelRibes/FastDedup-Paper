@@ -280,7 +280,7 @@ While these tools are typically used downstream after mapping reads to a referen
 However, even without the computationally heavy step of genomic alignment, the sheer format conversion from FASTQ to SAM/BAM introduces significant and unnecessary I/O and processing overhead.
 Because our primary objective is to evaluate and develop a highly optimized, memory-efficient tool strictly for direct FASTQ-to-FASTQ deduplication, these format-dependent tools fall outside the scope of our comparative analysis.
 
-//#pagebreak()
+#pagebreak()
 = -- FastDedup: High-Performance FASTX Deduplication
 #v(1em)
 
@@ -335,36 +335,53 @@ This zero-allocation pipeline completely bypasses system-level memory allocation
 
 While `FastDedup` defaults to the highly efficient 64-bit hashing strategy of `xxh3`, it dynamically assesses the risk of hash collisions to guarantee data integrity.
 The theoretical risk of a hash collision probability $p$ for $x$ sequences follows the standard Birthday Problem approximation @feller1968probability @cormen2009algorithms:
+
 $ p = x^2 / (2^(N+1)) $
 
 Where $N in {64, 128}$ represents the bit-length of the hash.
-At the default 64-bit configuration and a probability threshold of $0.001$, it requires approximately $0.19 * 10^9$ sequences to reach a $1permille$ collision risk.
-If the estimated dataset size pushes the collision probability beyond this threshold, `FastDedup` automatically scales to 128-bit hashing, effectively nullifying the risk (requiring $0.82 * 10^18$ sequences to reach the same probability).
+This probability expresses the chance that *at least one collision exists anywhere in the entire dataset*, not a per-read false-duplicate rate.
+When a collision does occur, it affects exactly one read; since $p$ is small, the expected number of false duplicates is also approximately $p$.
 
-For paired-end reads, maintaining this theoretical probability requires bitwise operations.
-Let $S_1$ and $S_2$ represent the nucleotide sequences of $R 1$ and $R 2$, and $H$ be our non-cryptographic uniform hash function mapping to ${0,1}^N$. We define the independent hashes for each read as:
+At the default 64-bit configuration and a probability threshold of $0.01$, it requires approximately $0.6 times 10^9$ sequences before the probability of any single collision occurring reaches $1%$.
+In practical terms, even at this boundary a run would produce fewer than one spurious duplicate on average.
+If the estimated dataset size pushes the collision probability beyond this threshold, `FastDedup` automatically scales to 128-bit hashing, extending the same guarantee to approximately $2.6 times 10^18$ sequences --- far beyond any current sequencing experiment.
+
+In everyday use cases, the 64-bit hashing strategy is more than sufficient.
+The 128-bit option serves as a safeguard for extreme cases, ensuring that `FastDedup` can maintain its performance and integrity even as sequencing datasets continue to grow exponentially.
+Even at the theoretical boundary, the expected number of false duplicates remains below one, and any dataset large enough to push beyond that boundary would contain hundreds of millions of reads, making a handful of removals statistically insignificant relative to the overall data volume.
+
+For paired-end reads, maintaining this theoretical probability requires careful bitwise operations.
+Let $S_1$ and $S_2$ represent the nucleotide sequences of $R 1$ and $R 2$, and $H$ be our non-cryptographic uniform hash function mapping to ${0,1}^N$.
+We define the independent hashes for each read as:
+
 $ h_1 = H(S_1) $
 $ h_2 = H(S_2) $
 
-If the algorithm combined these hashes using a simple bitwise XOR ($plus.o$) to create a unified fingerprint $h_u$, a critical failure occurs when $R 1$ and $R 2$ are identical sequences ($S_1 = S_2$). In this case, $h_1 = h_2$, resulting in:
+If the algorithm combined these hashes using a simple bitwise XOR ($plus.o$) to create a unified fingerprint $h_u$, a critical failure occurs when $R 1$ and $R 2$ are identical sequences ($S_1 = S_2$).
+In this case, $h_1 = h_2$, resulting in:
+
 $ h_u = h_1 plus.o h_1 = 0 $
 
-Every paired-end read with identical forward and reverse sequences would map to $0$. This would cause massive, deterministic hash collisions, meaning the collision probability would no longer be bounded by the theoretical uniform distribution, but rather by the biological frequency of identical sequence pairs in the dataset.
+Every paired-end read with identical forward and reverse sequences would map to $0$.
+This would cause massive, deterministic hash collisions, meaning the collision probability would no longer be bounded by the theoretical uniform distribution, but rather by the biological frequency of identical sequence pairs in the dataset.
 
-To prevent symmetrical cancellation, the algorithm introduces a bitwise left-rotation by $N/2$ bits, denoted as $R(x, k)$. The unified fingerprint is instead calculated as:
+To prevent this symmetrical cancellation, the algorithm introduces a bitwise left-rotation by $N\/2$ bits, denoted as $R(x, k)$ where $x$ is the hash and $k$ is the number of bits to rotate.\
+The unified fingerprint is instead calculated as:
+
 $ h_u = h_1 plus.o R(h_2, N/2) $
 
 Under this operation, even if $S_1 = S_2$:
+
 $ h_u = h_1 plus.o R(h_1, N/2) eq.not 0 $
 
 Because $R(h_1, N/2)$ shifts the lower half of the bits to the upper half and vice versa, $h_1 plus.o R(h_1, N/2)$ will almost never equal $0$.
 It would only equal $0$ if $h_1$ consisted of two perfectly identical halves, an event with an astronomically low probability of $2^(-N/2)$.
 
 Since a bitwise rotation is a bijective function over the $N$-bit vector space, it perfectly preserves the original entropy of $h_2$.
-When two independent, uniformly distributed random variables are combined using a bitwise XOR, the resulting variable remains uniformly distributed.
+When two independent, uniformly distributed random variables are combined via XOR, the resulting variable remains uniformly distributed.
 Therefore, the unified fingerprint $h_u$ safely maintains a strict uniform distribution, ensuring the overall collision risk remains uncorrupted and strictly bounded by the initial probability formula.
 
-This is the mathematical foundation that allows `FastDedup` to guarantee a collision probability of less than 1‰ for datasets containing up to approximately 190 million paired-end reads (380 million total sequences) when using 64-bit hashes.
+This is the mathematical foundation that allows `FastDedup` to guarantee a collision probability of less than $1%$ for datasets containing up to approximately 600 million paired-end reads (1.2 billion total sequences) when using 64-bit hashes.
 
 == : FxHash: Algorithmic Mechanics and ALU Optimizations
 #v(1em)
@@ -516,7 +533,7 @@ We got very similar results to those for uncompressed single-end data, with `Fas
 
 Now that we have significant data from isolated benchmarks, we can discuss the implications of these results for real-world applications and the future development of `FastDedup`.
 
-== : Output Quality and Deduplication Accuracy
+== : Output Quality and Deduplication Accuracy<outqual>
 
 Despite each tool having very different approaches to deduplication, they all produced the pretty much the same output in terms of the number of unique sequences and the duplication rate.
 There is a small difference, but less than 0.1% between the tools.
@@ -647,7 +664,7 @@ For maximum performance in any pipeline, we recommend the following strategy: ru
 Writing uncompressed output eliminates the compression bottleneck that otherwise dominates execution time, and the temporary files can be recompressed or deleted once downstream steps are complete.
 For users whose storage constraints require compressed outputs throughout, the compressed-output mode of `FastDedup` remains faster than all alternatives for paired-end data, and is still competitive for single-end data except for compressed outputs where `SeqKit` leads on speed alone.
 
-The 64-bit hashing mode is appropriate for the overwhelming majority of datasets: the collision probability remains below 1‰ for libraries of up to approximately 190 million paired-end reads (380 million total sequences).
+The 64-bit hashing mode is appropriate for the overwhelming majority of datasets: the collision probability remains below 1‰ for libraries of up to approximately 600 million paired-end reads (1.2 billion total sequences).
 For larger datasets, the automatic upgrade to 128-bit hashing provides the same pipeline interface with negligible runtime overhead and approximately double the memory cost, a trade-off that remains highly favourable compared to any deterministic alternative.
 
 We advise against `prinseq++` and `clumpify` in any production pipeline handling more than 5M reads.
@@ -658,15 +675,17 @@ Their false-positive rates are not a theoretical concern but an empirically obse
 
 The current version of `FastDedup` is strictly single-threaded.
 While this simplifies the zero-allocation pipeline and guarantees deterministic output ordering, it leaves performance on the table for users with access to multiple cores.
-The most impactful near-term improvement would be parallelising the compression and decompression stages, which account for more than 90% of wall-clock time in compressed-output modes.
-Parallelising the hashing and hash-set lookup stages would offer additional gains, though this requires careful handling of concurrent access to the shared hash set.
+The most impactful near-term improvement would be parallelizing the compression and decompression stages, which account for more than 90% of wall-clock time in compressed-output modes.
+Parallelizing the hashing and hash-set lookup stages would offer additional gains, though this requires careful handling of concurrent access to the shared hash set.
 
 A second avenue for development is abundance tracking: rather than discarding duplicate records entirely, `FastDedup` could optionally record the copy number of each unique sequence in the output headers.
 This would extend its utility to metagenomics and transcriptomics workflows where abundance information carries biological meaning.
 
-Finally, the current benchmarking suite covers synthetic data derived from a single human reference genome.
+We can also note that the current benchmarking suite covers synthetic data derived from a single human reference genome.
 Extending the evaluation to metagenomic, amplicon, and low-complexity datasets would provide a more complete picture of performance across the full range of sequencing applications.
 It has to be noted than all this benchmark have been made with `FastDedup` version 1.0.0, improvements and optimizations have been made since then, so the results of this paper may not reflect the current performance of `FastDedup`.
+
+Finally, `FastDedup` could continue to expand its feature set to include additional pre-processing steps such as quality filtering, adapter and sequence trimming for example.
 
 `FastDedup` is available under the MIT License at:
 - GitHub #link("https://github.com/RaphaelRibes/FastDedup")
@@ -691,6 +710,7 @@ Computations were performed on the ISDM-MESO HPC platform, funded in the framewo
 
 #page(flipped: true)[
     = -- Annexes
+    Note: For all those tables, `prinseq++` and `clumpify` will not be highlighted in green if they have the best results for the problem discussed in @outqual
 
     #bench-table(
         "results/pe_cc.csv",
