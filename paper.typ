@@ -1,13 +1,18 @@
 #import "@preview/oxdraw:0.1.0": *
 #import "bench-table.typ": bench-table, duplication-rate-table
-#import "comparaison-tables.typ": build-comparaison-table, build-ram-comparaison-table
+#import "comparison-tables.typ": build-comparaison-table, build-ram-comparaison-table
 #import "@preview/cetz:0.4.2": canvas, draw
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge, shapes
 #import "@preview/fontawesome:0.5.0": *
+#import "@preview/codly:1.3.0": *
+#import "@preview/codly-languages:0.1.1": *
+#show: codly-init.with()
+
+#codly(languages: codly-languages)
 
 
 #set document(
-  title: "FastDedup: A fast and memory efficient tool for reads deduplication",
+  title: "FastDedup: A fast and memory-efficient tool for read deduplication",
   date: auto,
 )
 
@@ -16,7 +21,7 @@
   margin: (x: 2cm, y: 2cm),
   header: context {
     if counter(page).get().first() > 1 [
-      #text(size: 9pt, fill: gray)[FastDedup -- A fast and memory efficient tool for reads deduplication #h(1fr) R.Ribes & C.Mandier]
+      #text(size: 9pt, fill: gray)[FastDedup -- A fast and memory-efficient tool for read deduplication #h(1fr) R.Ribes & C.Mandier]
       #line(length: 100%, stroke: 0.5pt + gray)
     ]
   },
@@ -41,7 +46,7 @@
   #v(3cm)
   #text(size: 24pt, weight: "bold")[FastDedup]
   #v(0.5cm)
-  #text(size: 18pt, weight: "bold")[A fast and memory efficient tool for reads deduplication]
+  #text(size: 18pt, weight: "bold")[A fast and memory-efficient tool for read deduplication]
   #v(3cm)
   #text(size: 12pt)[*Raphaël Ribes*, *Céline Mandier*\ _Université de Montpellier_]
   
@@ -61,8 +66,8 @@
   reducing memory usage and binding most of the execution time to disk I/O.
   Benchmarked against six competing tools on synthetic human WGS datasets
   up to 300 million reads, `FastDedup` consistently leads on paired-end
-  data, running more than 10 times faster than `fastp` while using a fraction
-  of `fastp`'s RAM usage overall. It also outperforms all tools on uncompressed single-end 
+  data, running more than 10 times faster than `fastp`.
+  It also outperforms all tools on uncompressed single-end
   data, deduplicating a million reads in a second.
   We additionally report correctness failures in `prinseq++` and `clumpify`.
   `FastDedup` is available under the MIT License via GitHub, Bioconda, and Cargo.
@@ -88,9 +93,9 @@
 
 #v(1em) 
 With the rise of Next-Generation Sequencing (NGS) technologies, the volume of sequencing data has increased exponentially.
-With this surge in data, the development of new tools for processing and analyzing sequencing reads was needed.
-One of the first and critical steps in the analysis pipeline is the deduplication of reads, which involves identifying and removing duplicate sequences that can arise from PCR amplification or sequencing errors.
-This is crucial when working with DNA-seq data, but can introduce bias in RNA-seq data since the duplication could be biological in nature (e.g., highly expressed genes).
+With this surge in data, the development of new tools for processing and analyzing sequencing reads became necessary.
+One of the first and most critical steps in the analysis pipeline is read deduplication, which involves identifying and removing duplicate sequences that can arise from PCR amplification or sequencing errors.
+This is crucial when working with DNA-seq data, but it can introduce bias in RNA-seq data since the duplication could be biological in nature (e.g., highly expressed genes).
 
 #v(1em)
 
@@ -148,22 +153,22 @@ This is crucial when working with DNA-seq data, but can introduce bias in RNA-se
   ])
 ]
 
-We define a fragment $F$, the 5'->3' sequence as $R 1$ with a length of $r_1$ and the 3'->5' sequence as $R 2$ with a length of $r_2$. 
-We can say that $R 1$ is the prefix of $F$, $R 2$ reversed is the suffix of $F$ and $r_1 = r_2$.
+Given a fragment $F$, we define the 5'->3' sequence as $R 1$ with a length of $r_1$, and the 3'->5' sequence as $R 2$ with a length of $r_2$. 
+$R 1$ is the prefix of $F$, the reverse complement of $R 2$ is the suffix of $F$, and $r_1 = r_2$.
 
-Therefore, a PCR duplicate can be defined as if $F_1$ and $F_2$ have the same starting and ending position in the genome, with the same length.
-In that case, $R 1_1$ and $R 1_2$ are the same, and $R 2_1$ and $R 2_2$ are the same.
+Therefore, a PCR duplicate occurs when $F_1$ and $F_2$ share the same starting and ending positions in the genome, and thus have the same length.
+In that case, $R 1_1$ and $R 1_2$ are identical, and $R 2_1$ and $R 2_2$ are identical.
 
-This step is crucial because removing these artifacts prevents false positives during variant calling since PCR polymerases can introduce errors during the cycles of amplification.
+This step is crucial because removing these artifacts prevents false positives during variant calling, as PCR polymerases can introduce errors during amplification cycles.
 If an error occurs early, it is propagated into multiple daughter molecules.
 When sequenced, these identical, error-carrying molecules will appear as multiple independent reads supporting a mutation that does not actually exist in the biological sample @Ebbert2016.                                 
 
-Deduplication also allows correcting the allele frequency bias since not all DNA molecules amplify with equal efficiency due to factors like GC content or fragment length.
+Deduplication also helps correct allele frequency bias, as not all DNA molecules amplify with equal efficiency due to factors such as GC content or fragment length.
 This uneven amplification can artificially inflate the coverage of certain alleles.
-And it also improves _de novo_ assembly, especially in whole-genome sequencing.
-When paired-end reads are mapped to estimate the order and intervening distance between contigs, duplicates can create false-positive connections between contigs or introduce conflicting connections. @Zhang2023.
+It also improves _de novo_ assembly, especially in whole-genome sequencing.
+When paired-end reads are mapped to estimate the order and intervening distance between contigs, duplicates can create false-positive connections between contigs or introduce conflicting connections @Zhang2023.
                              
-Before presenting our tool, we will first review the existing tools for reads deduplication and their limitations. 
+Before presenting our tool, we will first review existing tools for read deduplication and their limitations. 
 
 #pagebreak() 
 = -- Existing tools and limitations 
@@ -181,9 +186,11 @@ This streaming, single-pass architecture avoids reading and writing intermediate
 A significant advantage of `fastp` is its highly configurable memory management.
 Users can adjust the `--dup_calc_accuracy` parameter to scale the hash buffer size from 1 GB up to 24 GB, allowing the tool to run on both standard personal computers and High-performance Computing (HPC) clusters. 
 
-However, this probabilistic approach involves a minor trade-off in absolute precision. `fastp` has a theoretical false-positive rate. 
-Furthermore, `fastp`'s deduplication algorithm relies heavily on the exact matching of sequence lengths and coordination regions. 
+However, this probabilistic approach involves a minor trade-off in absolute precision, as `fastp` has a theoretical false-positive rate. 
+Furthermore, `fastp`'s deduplication algorithm relies heavily on the exact matching of sequence lengths and coordinate regions. 
 Consequently, applying certain quality trimming operations (such as sliding-window trimming via `--cut_front` or `--cut_tail`) prior to deduplication can interfere with the duplicate identification process, as trimmed reads may no longer perfectly match their duplicate counterparts.
+
+We will be using the 1.1.0 version in this study.
 
 == : FastUniq
 #v(1em)
@@ -191,7 +198,7 @@ Consequently, applying certain quality trimming operations (such as sliding-wind
 `FastUniq` @Xu2012 is a deterministic deduplication tool explicitly designed for paired-end (PE) short reads.
 By directly comparing the nucleotide sequences of read pairs, it provides an exact identification of PCR duplicates. 
 
-Algorithmically, `FastUniq` operates by loading the entirety of the paired reads into memory, sorting them based on their sequences using a merge sort algorithm and identifying duplicates by sequentially comparing adjacent read pairs in the sorted list.\
+Algorithmically, `FastUniq` operates by loading the entirety of the paired reads into memory, sorting them based on their sequences using a merge sort algorithm, and identifying duplicates by sequentially comparing adjacent read pairs in the sorted list.\
 A notable feature of its comparison logic is its ability to handle reads of varying lengths: a shorter sequence is considered identical to a longer one if it perfectly matches its 5' prefix.
 If duplicates are found, the pair containing the longest reads is retained.
 
@@ -201,7 +208,9 @@ Benchmarking studies have highlighted this as a severe limitation for modern hig
 For instance, processing a moderately sized dataset of approximately 69 million read pairs required over 50 GB of RAM @Dai2020.
 
 While highly accurate, `FastUniq` is often impractical for massive datasets without access to HPC clusters. 
-Furthermore, its scope is strictly limited to paired-end data, it does not tolerate sequence mismatches.
+Furthermore, its scope is strictly limited to paired-end data, and it does not tolerate sequence mismatches.
+
+We will be using the 1.1 version in this study.
 
 == : Clumpify
 #v(1em)
@@ -222,6 +231,8 @@ If the dataset exceeds available RAM, the tool can divide the data into temporar
 However, its reliance on the Java Virtual Machine (JVM) can lead to instability and high memory overhead on massive datasets.
 By default, high-memory tools within the BBTools suite will attempt to allocate all available system RAM @Bushnell2014, and JVM garbage collection overhead can cause severe bottlenecks unless strict multi-threading and heap-size limits are manually tuned.
 
+We will be using the 39.79 bbmap version in this study.
+
 == : SeqKit
 #v(1em)
 
@@ -236,9 +247,11 @@ This extreme memory efficiency allows `SeqKit` to maintain a very low resource f
 
 Despite its speed and memory efficiency, `SeqKit rmdup` has a notable architectural limitation: it does not natively support the synchronized deduplication of paired-end reads.
 The `rmdup` command evaluates and processes individual files independently.
-It will check duplicates inside each file separately, so if $R 1_1=R 1_2$ but $R 2_1 eq.not R 2_2$, $R 1_2$ will be flagged as a duplicate and removed, while $R 2_2$ will be retained, leading to loss of data and desynchronization of the paired files.
+It checks for duplicates inside each file separately; therefore, if $R 1_1=R 1_2$ but $R 2_1 eq.not R 2_2$, $R 1_2$ will be flagged as a duplicate and removed while $R 2_2$ is retained, leading to data loss and desynchronization of the paired files.
 While workarounds exist using other `SeqKit` subcommands (such as `seqkit pair` to resynchronize files), `seqkit rmdup` is generally considered the optimal choice strictly for single-end libraries.
 This is why we will not use it for paired-end benchmarking in this study.
+
+We will be using the 2.13.0 version in this study.
 
 == : CD-HIT-DUP
 #v(1em)
@@ -253,6 +266,8 @@ To accelerate this binning and sorting process, it uses a dual numeric encoding 
 Within each bin, sequences are sorted by decreasing length, with the longest sequence acting as the cluster's seed.
 The algorithm then evaluates the suffixes of the remaining sequences against this seed, utilizing a $k$-mer word-based index table to statistically predict sequence identity and bypass computationally expensive full pairwise alignments when possible.
 For paired-end libraries, `CD-HIT-DUP` conceptually joins the read pairs into a single sequence and checks prefixes at both ends simultaneously to ensure paired-end integrity.
+
+We will be using the 4.8.1 cd-hit-auxtools version in this study.
 
 == : PRINSEQ++
 #v(1em)
@@ -271,11 +286,13 @@ However, the deduplication function (`-derep`) is strictly limited to exact dupl
 Furthermore, the probabilistic nature of the Bloom filter introduces a theoretically non-zero rate of false positives.
 Finally, when `prinseq++` is executed with multiple threads, the output sequences are not guaranteed to remain in the same order as the input files, which may require consideration if downstream tools expect strict global index synchronization.
 
+We will be using the 1.2.4 version in this study.
+
 == : SAM/BAM ecosystem tools
 #v(1em)
 
 In addition to tools that operate directly on raw FASTQ sequences, the bioinformatics ecosystem relies heavily on utilities designed for SAM and BAM formats.
-PCR deduplication tools such as `samtools` (via `markdup`) @Li2009 and Picard's `MarkDuplicates` @Picard.\
+These include PCR deduplication tools such as `samtools` (via `markdup`) @Li2009 and Picard's `MarkDuplicates` @Picard.\
 While these tools are typically used downstream after mapping reads to a reference genome, it is technically possible to convert raw, unaligned FASTQ files directly into unmapped SAM/BAM files to process them through these pipelines.
 However, even without the computationally heavy step of genomic alignment, the sheer format conversion from FASTQ to SAM/BAM introduces significant and unnecessary I/O and processing overhead.
 Because our primary objective is to evaluate and develop a highly optimized, memory-efficient tool strictly for direct FASTQ-to-FASTQ deduplication, these format-dependent tools fall outside the scope of our comparative analysis.
@@ -284,7 +301,7 @@ Because our primary objective is to evaluate and develop a highly optimized, mem
 = -- FastDedup: High-Performance FASTX Deduplication
 #v(1em)
 
-The goal behind the development of `FastDedup` (or `FDedup` ; @SE_arch @PE_arch) was to create a FASTX exact PCR deduplication tool that prioritizes maximum speed and memory efficiency.
+The goal behind the development of `FastDedup` (or `FDedup`; @SE_arch @PE_arch) was to create an exact FASTX PCR deduplication tool that prioritizes maximum speed and memory efficiency.
 To achieve this, the tool relies on `xxh3` @Collet_xxHash @DoumanAsh_xxhash_rust, a non-cryptographic hash function, to compute a unique fingerprint for each read.
 These fingerprints are cached in memory using `fxhash` @cbreeden_fxhash, which provides a low memory footprint.
 
@@ -292,7 +309,7 @@ These fingerprints are cached in memory using `fxhash` @cbreeden_fxhash, which p
 It automatically scales its hashing strategy, seamlessly switching between 64-bit and 128-bit hashes based on the estimated input sequence count and a user-defined collision probability threshold.
 
 Specifically designed for seamless integration into OMICS pipelines, the tool features robust incremental deduplication and auto-recovery mechanisms.
-In the event of an interruption `FastDedup` can safely preload existing hashes from the output file to prevent duplicate processing and smoothly resume operations.
+In the event of an interruption, `FastDedup` can safely preload existing hashes from the output file to prevent duplicate processing and smoothly resume operations.
 If an uncompressed output file becomes corrupted due to a crash, the tool automatically detects the issue, calculates a fail-safe truncation point, and truncates the file to the last valid sequence before continuing.
 
 Finally, a dry-run mode (`--dry-run` or `-s`) is available to calculate the duplication rate without writing any output files.
@@ -316,7 +333,7 @@ This decouples the memory requirement from the read length, reducing the space c
 
 String-based deduplication necessitates comparing sequences letter by letter, meaning the time it takes scales with the read length.
 In the worst-case scenario, comparing two sequences requires $O(L)$ time.
-FastDedup changes this dynamic. While it still takes $O(L)$ time to read a sequence and calculate its initial hash, every subsequent comparison uses only that hash
+`FastDedup` changes this dynamic. While it still takes $O(L)$ time to read a sequence and calculate its initial hash, every subsequent comparison uses only that hash.
 Because the hash is a simple 64-bit integer, the processor's Arithmetic Logic Unit can compare two of them natively in a single clock cycle, instantly dropping the lookup and comparison time complexity to $O(1)$.
 
 === Cache Locality and Zero-Allocation Pipeline
@@ -343,7 +360,7 @@ This probability expresses the chance that *at least one collision exists anywhe
 When a collision does occur, it affects exactly one read; since $p$ is small, the expected number of false duplicates is also approximately $p$.
 
 At the default 64-bit configuration and a probability threshold of $0.01$, it requires approximately $0.6 times 10^9$ sequences before the probability of any single collision occurring reaches $1%$.
-In practical terms, even at this boundary a run would produce fewer than one spurious duplicate on average.
+In practical terms, even at this boundary, a run would produce fewer than one spurious duplicate on average.
 If the estimated dataset size pushes the collision probability beyond this threshold, `FastDedup` automatically scales to 128-bit hashing, extending the same guarantee to approximately $2.6 times 10^18$ sequences --- far beyond any current sequencing experiment.
 
 In everyday use cases, the 64-bit hashing strategy is more than sufficient.
@@ -436,18 +453,18 @@ Combined with the zero-allocation and cache-locality properties described in @Al
 
 = -- Benchmarking and performance evaluation
 
-To test the performance of the different tools mentioned in the previous sections (@tools_table), we benchmarked them on a series of synthetic datasets of varying sizes, ranging from 100,000 to 300 million paired-end reads to which we added 10% duplicates.
-These reads were generated based on a real human whole-genome (GRCh38).
+To test the performance of the different tools mentioned in the previous sections (@tools_table), we benchmarked them on a series of synthetic datasets of varying sizes, ranging from 100,000 to 300 million paired-end reads, to which we added 10% duplicates.
+These reads were generated based on a real human whole genome (GRCh38).
 This allows us to evaluate the scalability of each tool and its suitability for different types of sequencing projects, from small-scale experiments to large population genomics studies.
-To run those benchmarks in a controlled environment, we set up a snakemake pipeline with each tool having 1 core and 33GB of RAM available.
+To run these benchmarks in a controlled environment, we set up a Snakemake pipeline where each tool had 1 core and 33 GB of RAM available.
 This pipeline ran on the High-Performance Computing (HPC) ISDM-MESO cluster with AMD EPYC 9654 processors.
-If the tool goes above 32GB of RAM, it is killed and written as OOM (Out Of Memory) in the results table.
-In times where RAM and electricity are becoming increasingly costly and environmentally impactful, it is crucial to consider the resource efficiency of bioinformatics tools.
-Since those tools are for the first step for pre-treatment of data, it would be senseless to run them on ludicrous resources.
+If a tool exceeds 32 GB of RAM, it is killed and documented as OOM (Out Of Memory) in the results table.
+At a time when RAM and electricity are becoming increasingly costly and environmentally impactful, it is crucial to consider the resource efficiency of bioinformatics tools.
+Since these tools represent the first step in data preprocessing, it is inefficient to run them using excessive resources.
 
-== : Compressed Paired-End FASTQ
+== : (PE-cc) Compressed Paired-End FASTQ
 
-The default compression level of `fastp` is 4 but all the other tools use a compression level of 6, which is the default for `gzip`.
+The default compression level of `fastp` is 4, whereas all other tools use a compression level of 6, which is the default for `gzip`.
 
 #figure(
     image("results/pe_cc_runtime_and_ram.svg", width: 100%),
@@ -456,15 +473,15 @@ The default compression level of `fastp` is 4 but all the other tools use a comp
     ],
 )<PE_cc_bench>
 
-After setting `fastp` to use the same compression level, we can see that `FastDedup` is around 50% faster than fastp while using much less RAM until 300M reads, where it uses roughly the same amount as fastp for the 64-bit version (@PE_cc_bench, @PE_cc_table).
-We also observed that there are no real differences in execution time between the 64-bit and 128-bit hashing strategies and that the difference in RAM usage between the 64-bit and 128-bit hashing strategies is doubled, which is consistent with the fact that 64 times 2 is 128.
-Looking closely at the memory scaling, `clumpify`'s RAM usage increases steeply, exhausting the 32GB limit before reaching 100M reads (consuming over 23GB at 50M reads alone).
+After setting `fastp` to use the same compression level, we observe that `FastDedup` is around 50% faster than `fastp` while using significantly less RAM up to 300M reads, at which point it uses roughly the same amount as `fastp` for the 64-bit version (@PE_cc_bench, @PE_cc_table).
+We also observed no significant differences in execution time between the 64-bit and 128-bit hashing strategies. Furthermore, the RAM usage for the 128-bit strategy is strictly doubled compared to the 64-bit strategy, perfectly reflecting the twofold increase in fingerprint size.
+Looking closely at the memory scaling, `clumpify`'s RAM usage increases steeply, exhausting the 32 GB limit before reaching 100M reads (consuming over 23 GB at 50M reads alone).
 In contrast, `FastDedup` maintains a very flat memory profile, using only around 4.6GB of RAM at 300M reads.
 Execution time for `FastDedup` and other tools scales almost linearly with volume, demonstrating their respective I/O-bound bottlenecks, but `FastDedup` remains faster than `fastp` by approximately 50%.
 
-== : Uncompressed Paired-End FASTQ
+== : (PE-dd) Uncompressed Paired-End FASTQ
 
-For uncompressed FASTQ files as inputs and outputs, the raw computational speed of the tools is fully exposed. `FastDedup` consistently outpaces all other tools in execution time (@PE_dd_bench, @PE_dd_table), completing 300M reads in under 10 minutes (approx. 450s). In comparison, `prinseq++` requires approximately 2700s and `fastp` roughly 4500s for the same volume---meaning `FastDedup` is around 6x faster than `prinseq++` and 10x faster than `fastp`.
+For uncompressed FASTQ files as inputs and outputs, the raw computational speed of the tools is fully exposed. `FastDedup` consistently outpaces all other tools in execution time (@PE_dd_bench, @PE_dd_table), completing 300M reads in under 10 minutes (approx. 450s). In comparison, `prinseq++` requires approximately 2700s and `fastp` roughly 4500s for the same volume---meaning `FastDedup` is around 6× faster than `prinseq++` and 10× faster than `fastp`.
 We can also see that `FastDedup` maintains a highly stable memory footprint (around 4.6GB and 8.7GB of RAM for 64-bit and 128-bit hashing respectively at 300M reads), while `prinseq++` edges it out in strict memory efficiency starting at 5M reads.
 Deterministic string-matching tools struggle significantly with memory capacity here: `CD-HIT-DUP` and `FastUniq` load full sequences into RAM, causing vertical spikes in their memory usage leading to OOM crashes early on (at 30M and 50M reads respectively). `clumpify` also succumbed to OOM errors at 300M reads.
 
@@ -477,9 +494,9 @@ Deterministic string-matching tools struggle significantly with memory capacity 
 )<PE_dd_bench>
 
 #v(1fr)
-== : Compressed in, uncompressed out Paired-End FASTQ
+== : (PE-cd) Compressed in, uncompressed out Paired-End FASTQ
 
-Before talking about the results, we have to note that `FastUniq` and `CD-HIT-DUP` are not included in this benchmark since they do not support compressed files.
+Before discussing the results, it should be noted that `FastUniq` and `CD-HIT-DUP` are excluded from this benchmark because they do not support compressed files.
 
 #figure(
     image("results/pe_cd_runtime_and_ram.svg", width: 100%),
@@ -488,11 +505,11 @@ Before talking about the results, we have to note that `FastUniq` and `CD-HIT-DU
     ],
 )<PE_cd_bench>
 
-We observe very similar results as for uncompressed files (@PE_cd_bench, @PE_cd_table).
+We observe very similar results to those obtained with uncompressed files (@PE_cd_bench, @PE_cd_table).
 `FastDedup` being the fastest tool and using the least amount of RAM up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup`.
 We can also note very similar results for relative performance between each tool, which means that all the tools scale in a similar way whether the input files are compressed or not.
 
-== : Compressed Single-End FASTQ
+== : (SE-cc) Compressed Single-End FASTQ
 
 #figure(
     image("results/se_cc_runtime_and_ram.svg", width: 100%),
@@ -505,7 +522,7 @@ For compressed single-end data, `SeqKit` and `fastp` hold a slight advantage in 
 However, pulling attention to the memory graph reveals a dramatic difference in scalability: while `SeqKit`'s memory scales aggressively up to approximately 19 GB at 300M reads, `FastDedup`'s memory footprint strictly remains stable around 4.6 GB (a flat fourfold reduction).
 This showcases `FastDedup`'s superior suitability for memory-restricted environments, even when it is roughly 25% slower in pure elapsed time.
 
-== : Uncompressed Single-End FASTQ
+== : (SE-dd) Uncompressed Single-End FASTQ
 
 #figure(
     image("results/se_dd_runtime_and_ram.svg", width: 100%),
@@ -514,10 +531,10 @@ This showcases `FastDedup`'s superior suitability for memory-restricted environm
     ],
 )<SE_dd_bench>
 
-Removing the `gzip` bottleneck entirely, `FastDedup` processes 300M single-end reads in roughly 330 seconds, demonstrating its fundamental algorithmic advantage in parsing and deduplicating (@SE_dd_bench, @SE_dd_table).
-It stands more than 3 times faster than both `SeqKit` and `fastp` (which hover around 900-1500s). In addition to speed, it uses a quarter of the RAM of `SeqKit` (4.6 GB vs 19 GB) and roughly the same amount as `fastp`.
+Removing the `gzip` bottleneck entirely, `FastDedup` processes 300M single-end reads in roughly 363 seconds, demonstrating its fundamental algorithmic advantage in parsing and deduplicating (@SE_dd_bench, @SE_dd_table).
+It stands around 3 times faster than both `SeqKit` and `fastp` (which hover around 900-1500s). In addition to speed, it uses a quarter of the RAM of `SeqKit` (4.6 GB vs 19 GB) and roughly the same amount as `fastp`.
 
-== : Compressed in, uncompressed out Single-End FASTQ
+== : (SE-cd) Compressed in, uncompressed out Single-End FASTQ
 
 We got very similar results to those for uncompressed single-end data, with `FastDedup` being the fastest tool for all volumes and using the least amount of RAM up until 5M reads, where `prinseq++` starts to use less memory than `FastDedup` (@SE_cd_bench, @SE_cd_table).
 
@@ -535,11 +552,11 @@ Now that we have significant data from isolated benchmarks, we can discuss the i
 
 == : Output Quality and Deduplication Accuracy<outqual>
 
-Despite each tool having very different approaches to deduplication, they all produced the pretty much the same output in terms of the number of unique sequences and the duplication rate.
-There is a small difference, but less than 0.1% between the tools.
-However, we were not able to estimate for `CD-HIT-DUP` since it doesn't output any log.
-Moreover, there is a problem with `prinseq++` starting at 10M reads where the duplication rate is higher than 10.1%, reaching up to more than 90% at 300M reads (@PE_dd_dedup, @pe_rate).
-Because of this we do not recommend using `prinseq++` in your pipelines, since it starts to be more memory efficient than `FastDedup` at 5M reads, but starts having a very high false-positive rate at 10M reads.
+Despite each tool employing very different approaches to deduplication, they all produced nearly identical outputs regarding the number of unique sequences and the duplication rate.
+The differences between tools are marginal, staying entirely within a 0.1% margin.
+However, we were unable to estimate this metric for `CD-HIT-DUP` because it does not output a log.
+Moreover, a critical problem emerges with `prinseq++` starting at 10M reads: its reported duplication rate exceeds the expected 10.1%, climbing to over 90% at 300M reads (@PE_dd_dedup, @pe_rate).
+Because of this severe issue, we strongly advise against using `prinseq++` in production pipelines; although it becomes more memory-efficient than `FastDedup` at 5M reads, its false-positive rate becomes unacceptably high by 10M reads.
 
 #figure(
     image("results/pe_dd_duplication_rate.svg", width: 100%),
@@ -555,8 +572,8 @@ Because of this we do not recommend using `prinseq++` in your pipelines, since i
 )
 
 A similar pattern is observed for `clumpify` on single-end data, but starting at 3M reads.
-It is above 10.1% at 10M reads but reaching more than 10.1% at 100M reads.
-This is still above the 0.1% false-positive threshold, but it is far better than the 90% false-positive rate of `prinseq++` at 300M reads (@SE_dd_dedup, @se_rate).
+It rises above 10.01% at 10M reads, continuing to climb steadily up to 100M reads.
+While this still exceeds the false-positive threshold, it remains significantly better than the 90% false-positive rate exhibited by `prinseq++` at 300M reads (@SE_dd_dedup, @se_rate).
 
 #figure(
     image("results/se_dd_duplication_rate.svg", width: 100%),
@@ -571,8 +588,8 @@ This is still above the 0.1% false-positive threshold, but it is far better than
   label: <se_rate>
 )
 
-The target duplication value isn't constant across different volumes because `wgsim` is a random read simulator.
-We can calculate the number of natural duplicates $C$ with $N$ randomly generated reads from a uniform distribution of $M$ possible start positions like $C approx N^2 / (2M)$.
+The actual duplication rate is not strictly constant across different sequencing volumes because `wgsim` acts as a random read simulator.
+We can calculate the expected number of natural coincidental duplicates $C$ with $N$ randomly generated reads from a uniform distribution of $M$ possible start positions as $C approx N^2 / (2M)$.
 However, the human genome is not uniform, as it contains high-frequency repeat families @treangen2012repetitive, so we have to approximate $M$ with the number of unique start positions in the simulated dataset.
 We can approximate $k=(2G)^(-1)$ using a known data point from your `wgsim` simulation.
 Looking at the generation of $270,000,000$ single-end reads, the simulation naturally produced roughly $60,000$ coincidental duplicates.
@@ -582,7 +599,77 @@ $
 60,000 &= k times (270,000,000)^2 \
 k &= (60,000) / (270,000,000)^2
 $
-We can simply now express the number of natural duplicates $C$ like $C=k times N^2$ and add this $C$ to the 10% of duplicates we added to the dataset to get the expected duplication rate for each dataset size.
+We can now express the number of natural duplicates $C$ as $C=k times N^2$ and add this value to the artificial 10% duplication rate we intentionally introduced, yielding the theoretical expected duplication rate for each dataset size.
+
+Before leaving this, we have to talk about why `prinseq++`'s false-positive rate explodes so dramatically with increasing dataset size.
+We can calculate the expected false-positive rate $F$ for a Bloom filter with $m$ bits and $n$ inserted elements using $k$ hash functions as:
+$ F = (1 - e^(-(k n)/m))^k $
+We have multiple data points for `prinseq++`'s false-positive rate at different volumes, so we can solve for $m$ using the observed false-positive rates like so:
+$ m approx - (k n) / ln(1 - F^(1/k)) $
+However, we also need $k$, the number of hash functions used by `prinseq++`, which is not documented.
+
+However I know how to read code. In `main.cpp`, we can find this snippet of code starting at line 497.
+
+```CPP
+    if (derep) {
+        parameters.projected_element_count = 10000000;
+        parameters.false_positive_probability = 0.000001; // 1 in 10000
+        parameters.random_seed = 0xA5A5A5A5;
+```
+
+The algorithm begins with two fixed, hardcoded constraints:
+- $n$ (Projected elements): $10,000,000$
+- $p$ (Target false positive probability): $10^(-6)$
+
+Because a Bloom filter must use a whole number of hash functions, the algorithm performs a discrete optimization.
+It iterates over integers $k in ZZ^+$ to find the argument $k$ that minimizes the size $m(k)$:
+
+$ k_"opt" = op("arg min")_(k in ZZ^+) ( (-k dot n) / ln(1 - p^(1/k)) ) $
+
+The continuous global minimum for this function occurs when $p = (1/2)^k$, we can directly solve for the ideal $k$:
+
+$ k approx -ln(p) / ln(2) <=> k approx -ln(10^(-6)) / ln(2) approx 13.8155 / 0.6931 approx 19.931 $
+
+When evaluating the function $m(k)$ across integer values, the discrete minimum strictly aligns with the closest integer to this theoretical continuous minimum. Therefore, the search loop locks in on: $k_"opt" = 20$
+With the optimal number of hash functions established, the algorithm substitutes this value back into the objective function to find the raw bit size:
+
+$ m_"raw" = (-20 dot 10,000,000) / ln(1 - (10^(-6))^(1/20))  approx 287,551,586.5 " bits" $
+
+The code then uses `static_cast` to truncate the decimal, resulting in an integer raw size of *287,551,586 bits*.
+We saw experimentally that `prinseq++` had a 45MB RAM footprint at 5M reads, which is consistent with this theoretical calculation since $287,551,586$ bits is approximately 34.3 MB.
+The rest of the RAM usage can be attributed to the overhead of the Bloom filter data structure.
+
+
+Now that we have explicitly determined the internal parameters, we can mathematically model how the false-positive rate degrades when the filter is fed a dataset of 100 million paired-end reads.
+
+Crucially, because `prinseq++` was executed using exclusively the `-derep` flag, no prior quality trimming or length filtering occurred.
+This guarantees that 100% of the dataset, all 200 million individual sequences, was forced into the Bloom filter.
+Assuming an estimated true biological duplication rate of 10%, the approximate number of unique sequences inserted into the filter is $N approx 180,000,000$.
+
+When `prinseq++` outputs the final deduplication percentage, it reports the fraction of reads flagged as duplicates across the entire run.
+As the filter fills up, the instantaneous false-positive rate after $x$ unique elements have been inserted, $F(x)$, increases monotonically toward saturation:
+
+$ F(x) = (1 - e^(-(20 x)/m))^20 $
+
+The expected average false-positive rate $overline(F)(N)$ for a dataset containing $N$ unique elements is the integral of this instantaneous rate over the domain of $N$, divided by $N$:
+
+$ overline(F)(1.8 dot 10^8) = 1/(1.8 dot 10^8) integral_0^(1.8 dot 10^8) (1 - e^(-(20 x) / 287551586))^20 upright(d)x $
+
+Evaluating this integral yields the theoretical average false-positive rate among unique reads:
+
+$ overline(F)(1.8 dot 10^8) approx 0.7126 $
+
+This indicates that 71.26% of the unique reads are expected to be incorrectly flagged as duplicates due to filter saturation.
+To obtain the total reported duplication rate, we must account for both the true duplicates and the false positives relative to the total number of reads:
+
+$ D_"total" = (D_"true" + overline(F)(N) dot N) / N_"total" = (0.10 times 2 dot 10^8 + 0.7126 times 1.8 dot 10^8) / (2 dot 10^8) approx 0.7414 $
+
+This theoretical prediction of 74.14% is in strikingly close of the empirical observation of 74.04%, differing by only 0.1 percentage points.
+The exclusive use of the `-derep` flag is what allows this mathematical model to map so cleanly to reality, as there are no "lost" reads from upstream filters skewing the input volume $N$.
+It is worth noting that this model assumes all $N$ unique reads are sequentially inserted into the filter.
+In practice, reads that trigger a false positive may not advance the filter state, which would slow saturation.
+The close agreement between the theoretical and empirical values suggests this effect is negligible at this scale.
+Regardless, the formulation strongly demonstrates that the 34.3 MB hardcoded memory footprint guarantees a catastrophic failure for a 200-million-read insertion volume.
 
 #page(flipped: true)[
     == : In short
@@ -651,7 +738,7 @@ Its design, shifting the deduplication problem from string-matching to integer-m
 
 For paired-end data, `FastDedup` is the clear winner on both dimensions.
 It consistently outperforms all competitors in execution time, being up to 6× faster than `prinseq++` and more than 10× faster than `fastp` on uncompressed 300M-read datasets, while keeping its memory footprint well below that of every other tool that survived to large volumes.
-`FastUniq` and `CD-HIT-DUP` are eliminated by memory constraints before reaching 100M reads, and `clumpify` crashes at 100M reads under the 32GB RAM budget regardless of format.
+`FastUniq` and `CD-HIT-DUP` are eliminated by memory constraints before reaching 100M reads, and `clumpify` crashes at 100M reads under the 32GB RAM budget regardless of format for paired-end cc and cd.
 `prinseq++`, despite being the most memory-efficient competitor, disqualifies itself on correctness grounds: its Bloom filter false-positive rate explodes beyond 10% starting at 10M reads, reaching above 90% at 300M reads, making it unsuitable for any analysis where duplicate removal must be reliable.
 
 For single-end data, the picture is more nuanced. `SeqKit` outperforms `FastDedup` on speed when both input and output are compressed, owing to its mature multi-threaded compression pipeline.
@@ -683,7 +770,7 @@ This would extend its utility to metagenomics and transcriptomics workflows wher
 
 We can also note that the current benchmarking suite covers synthetic data derived from a single human reference genome.
 Extending the evaluation to metagenomic, amplicon, and low-complexity datasets would provide a more complete picture of performance across the full range of sequencing applications.
-It has to be noted than all this benchmark have been made with `FastDedup` version 1.0.0, improvements and optimizations have been made since then, so the results of this paper may not reflect the current performance of `FastDedup`.
+It should be noted that all these benchmarks were performed with `FastDedup` version 1.0.0; improvements and optimizations have been made since then, so the results documented in this paper may not fully reflect the current, likely enhanced performance of `FastDedup`.
 
 Finally, `FastDedup` could continue to expand its feature set to include additional pre-processing steps such as quality filtering, adapter and sequence trimming for example.
 
