@@ -10,10 +10,10 @@ plot = { cmd = "python results/plotit.py", default-environment = "plot" }
 
 [tasks.compile]
 description = "Compile the Typst report to PDF"
-cmd = "typst compile --root . *.typ paper.pdf"
+cmd = "typst compile --root . paper.typ \"FastDedup: A fast and memory-efficient tool for read deduplication.pdf\""
 
 [tasks.watch]
-cmd = "typst watch --root . paper.typ paper.pdf"
+cmd = "typst watch --root . paper.typ \"FastDedup: A fast and memory-efficient tool for read deduplication.pdf\""
 
 [feature.plot.dependencies]
 python = "*"
