@@ -441,14 +441,14 @@ Combined with the zero-allocation and cache-locality properties described in @Al
     == : Architecture
     
     #figure(
-      image("SE.mmd.svg", width: 110%),
+      image("SE.mmd.svg", width: 100%),
       caption: [
         Architectural design of `FastDedup` for single-end reads.
       ],
     ) <SE_arch>
     #v(1fr)
     #figure(
-      image("PE.mmd.svg", width: 110%),
+      image("PE.mmd.svg", width: 100%),
       caption: [
         Architectural design of `FastDedup` for Paired-End reads.
       ],
