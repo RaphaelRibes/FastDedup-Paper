@@ -172,7 +172,7 @@ When sequenced, these identical, error-carrying molecules will appear as multipl
 
 Deduplication also helps correct allele frequency bias, as not all DNA molecules amplify with equal efficiency due to factors such as GC content or fragment length.
 This uneven amplification can artificially inflate the coverage of certain alleles.
-It also improves _de novo_ assembly, especially in whole-genome sequencing.
+Deduplication also improves _de novo_ assembly, especially in whole-genome sequencing.
 When paired-end reads are mapped to estimate the order and intervening distance between contigs, duplicates can create false-positive connections between contigs or introduce conflicting connections @Zhang2023.
 
 Before presenting our tool, we will first review existing tools for read deduplication and their limitations.
@@ -192,6 +192,8 @@ This streaming, single-pass architecture avoids reading and writing intermediate
 
 A significant advantage of `fastp` is its highly configurable memory management.
 Users can adjust the `--dup_calc_accuracy` parameter to scale the hash buffer size from 1 GB up to 24 GB, allowing the tool to run on both standard personal computers and High-performance Computing (HPC) clusters.
+This advantage is also its incovenient because the user would have to set up specific parameters for each dataset, which can be a problem for non-expert users and require trial and error to find the optimal settings.
+Because of this, we will use the default settings.
 
 However, this probabilistic approach involves a minor trade-off in absolute precision, as `fastp` has a theoretical false-positive rate.
 Furthermore, `fastp`'s deduplication algorithm relies heavily on the exact matching of sequence lengths and coordinate regions.
@@ -622,7 +624,7 @@ We have multiple data points for `prinseq++`'s false-positive rate at different 
 $ m approx - (k n) / ln(1 - F^(1/k)) $
 However, we also need $k$, the number of hash functions used by `prinseq++`, which is not documented.
 
-However I know how to read code. In `main.cpp`, we can find this snippet of code starting at line 497.
+Fortunately, this can be determined by inspecting the code. In `main.cpp`, we can find this snippet of code starting at line 497.
 
 ```CPP
     if (derep) {
@@ -695,7 +697,7 @@ Regardless, the formulation strongly demonstrates that the 34.3 MB hardcoded mem
                 
                 [*Tool*], [*Algorithm / Approach*], [*PE \ Support*], [*Error \ Tolerance*], [*Memory \ Usage*], [*Key Limitations*],
                 
-                [`fastp` @Chen2018 @Chen2023], [Probabilistic (Bloom filter/hashes)], [Yes], [No], [Configurable], [False-positive rate; long runtime],
+                [`fastp` @Chen2018 @Chen2023], [Probabilistic (Bloom filter/hashes)], [Yes], [No], [Configurable], [Long runtime.],
                 
                 [`FastUniq` @Xu2012], [Deterministic (Merge sort)], [Yes], [No], [Very High], [Severe RAM bottleneck; sensitive to input file order.],
                 
@@ -748,7 +750,7 @@ Its design, shifting the deduplication problem from string-matching to integer-m
 
 == : Summary of findings
 
-For paired-end data, `FastDedup` is the clear winner on both dimensions.
+For paired-end data, `FastDedup` is the clear winner on both execution time and RAM usage.
 It consistently outperforms all competitors in execution time, being up to 6× faster than `prinseq++` and more than 10× faster than `fastp` on uncompressed 300M-read datasets, while keeping its memory footprint well below that of every other tool that survived to large volumes except for `fastp` at 300M reads.
 `FastUniq` and `CD-HIT-DUP` are eliminated by memory constraints before reaching 100M reads, and `clumpify` crashes at 100M reads under the 32GB RAM budget regardless of format for paired-end cc and cd.
 `prinseq++`, despite being the most memory-efficient competitor, disqualifies itself on correctness grounds: its Bloom filter false-positive rate explodes beyond 10% starting at 10M reads, reaching above 90% at 300M reads, making it unsuitable for any analysis where duplicate removal must be reliable.
